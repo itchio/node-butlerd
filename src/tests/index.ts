@@ -1,24 +1,12 @@
-import { Instance, requests } from "..";
+import { Instance, requests, Client } from "..";
+import * as fs from "fs";
+import * as rimraf from "rimraf";
 
 async function main() {
   let s = new Instance();
 
   s.onClient(async client => {
-    const versionResult = await client.call(requests.Version.Get({}));
-    console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
-
-    client.onNotification(requests.Operation.Progress, pi => {
-      console.log(`<-- Progress: ${JSON.stringify(pi)}`);
-    });
-
-    const opResult = await client.call(
-      requests.Operation.Start({
-        params: {
-          stagingFolder: "/tmp",
-        },
-      }),
-    );
-    console.log(`<-- Operation.Start: ${JSON.stringify(opResult)}`);
+    await testClient(client);
 
     s.cancel();
   });
@@ -26,4 +14,64 @@ async function main() {
   await s.promise();
 }
 
-main();
+async function testClient(client: Client) {
+  const versionResult = await client.call(requests.Version.Get({}));
+  console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
+
+  const apiKey = process.env.ITCH_TEST_ACCOUNT_TOKEN;
+  if (!apiKey) {
+    console.log(`No API key, skipping Operation.Start test...`);
+    return;
+  }
+
+  try {
+    rimraf.sync("./prefix");
+    fs.mkdirSync("./prefix");
+  } catch (e) {
+    if (e.code !== "EEXIST") {
+      throw e;
+    }
+  }
+
+  client.onNotification(requests.Log, ({ params }) => {
+    console.log(`[${params.level}] ${params.message}`);
+  });
+
+  let lastProgress = 0.0;
+
+  client.onNotification(requests.Operation.Progress, ({ params }) => {
+    if (params.progress - lastProgress >= 0.2) {
+      console.log(`${(params.progress * 100).toFixed(2)}% done...`);
+      lastProgress = params.progress;
+    }
+  });
+
+  const opResult = await client.call(
+    requests.Operation.Start({
+      operation: "install",
+      stagingFolder: "./prefix/staging",
+      installParams: {
+        game: {
+          id: 59362,
+          title: "Neverjam",
+        },
+        installFolder: "./prefix/install",
+        credentials: {
+          apiKey,
+        },
+      },
+    }),
+  );
+  console.log(`<-- Operation.Start: ${JSON.stringify(opResult)}`);
+}
+
+process.on("unhandledRejection", e => {
+  console.error(`Unhandled rejection: ${e.stack}`);
+  process.exit(1);
+});
+
+main().catch(e => {
+  console.error(`Error in main: `);
+  console.error(e.stack);
+  process.exit(1);
+});

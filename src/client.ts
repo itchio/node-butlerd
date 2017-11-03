@@ -356,7 +356,9 @@ export class Client {
         return;
       }
 
-      promise.reject(obj.result);
+      promise.reject(
+        new Error(`JSON-RPC error ${obj.error.code}: ${obj.error.message}`),
+      );
       delete this.resultPromises[obj.id];
       return;
     }

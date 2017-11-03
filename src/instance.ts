@@ -6,7 +6,7 @@ const debug = require("debug")("buse:instance");
 
 export interface IButlerOpts {}
 
-export type ClientListener = (c: Client) => void;
+export type ClientListener = (c: Client) => Promise<void>;
 
 export class Instance {
   process: ChildProcess;
@@ -31,7 +31,7 @@ export class Instance {
             resolve(0);
             return;
           }
-          reject(`Killed by signal ${signal}`);
+          reject(new Error(`Killed by signal ${signal}`));
           return;
         }
 
@@ -39,6 +39,7 @@ export class Instance {
       });
 
       this.process.on("error", err => {
+        debug("butler had error: %s", err.stack || err.message);
         reject(err);
       });
 
@@ -57,9 +58,10 @@ export class Instance {
             this.client
               .connect(data.value.address)
               .then(() => {
-                this.clientListener(this.client);
+                return this.clientListener(this.client);
               })
-              .catch(reject);
+              .catch(e => reject(e));
+            return;
           }
         }
       });
