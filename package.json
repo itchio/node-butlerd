@@ -1,0 +1,37 @@
+{
+  "name": "node-butler",
+  "version": "0.1.0",
+  "description": "Node.js library for the butler API",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "prepublish": "npm run compile",
+    "compile": "tsc",
+    "test": "npm run compile && npm run tape",
+    "tape": "node lib/tests/index.js",
+    "generate": "node generate.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itchio/node-butler.git"
+  },
+  "keywords": [
+    "butler"
+  ],
+  "author": "Amos Wenger <amos@itch.io>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itchio/node-butler/issues"
+  },
+  "homepage": "https://github.com/itchio/node-butler#readme",
+  "devDependencies": {
+    "@types/node": "^8.0.47",
+    "@types/split2": "^2.1.6",
+    "prettier": "^1.7.4",
+    "typescript": "^2.6.1"
+  },
+  "dependencies": {
+    "debug": "^3.1.0",
+    "split2": "^2.2.0"
+  }
+}
