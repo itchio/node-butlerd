@@ -1,5 +1,5 @@
 {
-  "name": "node-butler",
+  "name": "node-buse",
   "version": "0.1.0",
   "description": "Node.js library for the butler API",
   "main": "lib/index.js",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/itchio/node-butler.git"
+    "url": "git+https://github.com/itchio/node-buse.git"
   },
   "keywords": [
     "butler"
@@ -21,9 +21,9 @@
   "author": "Amos Wenger <amos@itch.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/itchio/node-butler/issues"
+    "url": "https://github.com/itchio/node-buse/issues"
   },
-  "homepage": "https://github.com/itchio/node-butler#readme",
+  "homepage": "https://github.com/itchio/node-buse#readme",
   "devDependencies": {
     "@types/node": "^8.0.47",
     "@types/split2": "^2.1.6",

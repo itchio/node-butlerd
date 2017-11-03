@@ -1,6 +1,6 @@
-# node-butler
+# node-buse
 
-node-butler handles:
+node-buse handles:
 
   * launching [butler](https://itch.io/docs/butler) in service mode
   * connecting to it
@@ -20,8 +20,8 @@ as it stays in sync with [buse's own types](https://github.com/itchio/butler/tre
 It would be neat to have a code sample right in the README, but those tend to
 get out-of-sync with the actual code
 
-Instead, please head over to the [tests](https://github.com/itchio/node-butler/tree/master/src/tests) - they ought to be readable!
+Instead, please head over to the [tests](https://github.com/itchio/node-buse/tree/master/src/tests) - they ought to be readable!
 
 ## License
 
-node-butler is released under the MIT license, see the LICENSE file.
+node-buse is released under the MIT license, see the LICENSE file.
