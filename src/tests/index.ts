@@ -1,4 +1,4 @@
-import { Instance, requests, Client } from "..";
+import { Instance, messages, Client } from "..";
 import * as fs from "fs";
 import * as rimraf from "rimraf";
 
@@ -15,7 +15,7 @@ async function main() {
 }
 
 async function testClient(client: Client) {
-  const versionResult = await client.call(requests.Version.Get({}));
+  const versionResult = await client.call(messages.Version.Get({}));
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
   const apiKey = process.env.ITCH_TEST_ACCOUNT_TOKEN;
@@ -33,13 +33,13 @@ async function testClient(client: Client) {
     }
   }
 
-  client.onNotification(requests.Log, ({ params }) => {
+  client.onNotification(messages.Log, ({ params }) => {
     console.log(`[${params.level}] ${params.message}`);
   });
 
   let lastProgress = 0.0;
 
-  client.onNotification(requests.Operation.Progress, ({ params }) => {
+  client.onNotification(messages.Operation.Progress, ({ params }) => {
     if (params.progress - lastProgress >= 0.2) {
       console.log(`${(params.progress * 100).toFixed(2)}% done...`);
       lastProgress = params.progress;
@@ -47,7 +47,7 @@ async function testClient(client: Client) {
   });
 
   const opResult = await client.call(
-    requests.Operation.Start({
+    messages.Operation.Start({
       operation: "install",
       stagingFolder: "./prefix/staging",
       installParams: {
