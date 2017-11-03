@@ -116,7 +116,7 @@ export class Client {
   private requestHandlers: IRequestHandlers = {};
   private notificationHandlers: INotificationHandlers = {};
   private errorHandler: IErrorHandler = null;
-  idSeed = 1;
+  idSeed = 0;
 
   constructor() {}
 
@@ -204,18 +204,16 @@ export class Client {
     const obj = nc(params);
   }
 
-  async call<T, U>(
-    creator: (c: Client) => IRequest<T, U>,
-  ): Promise<IResult<U>> {
+  async call<T, U>(creator: (c: Client) => IRequest<T, U>): Promise<U> {
     const obj = creator(this);
 
-    if (!obj.id) {
+    if (typeof obj.id !== "number") {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
     }
 
     this.sendRaw(obj);
 
-    return new Promise<IResult<U>>((resolve, reject) => {
+    return new Promise<U>((resolve, reject) => {
       this.resultPromises[obj.id] = { resolve, reject };
     });
   }
@@ -227,7 +225,7 @@ export class Client {
     error?: RpcError,
   ): void {
     const obj = rc(id, result, error);
-    if (!obj.id) {
+    if (typeof obj.id !== "number") {
       throw new Error(`missing id in result ${JSON.stringify(obj)}`);
     }
 
@@ -285,7 +283,7 @@ export class Client {
       return;
     }
 
-    if (!obj.id) {
+    if (typeof obj.id !== "number") {
       // we got a notification!
       const handler = this.notificationHandlers[obj.method];
       if (!handler) {

@@ -70,3 +70,14 @@ export const Log = createNotification<{
   level: string;
   message: string;
 }>("Log");
+
+export interface DoublePayload {
+  number: number;
+}
+
+export const Test = {
+  DoubleTwiceRequest: createRequest<DoublePayload, DoublePayload>(
+    "Test.DoubleTwice",
+  ),
+  DoubleRequest: createRequest<DoublePayload, DoublePayload>("Test.Double"),
+};

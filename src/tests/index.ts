@@ -14,9 +14,31 @@ async function main() {
   await s.promise();
 }
 
+function assertEqual(actual: number, expected: number) {
+  if (actual != expected) {
+    throw new Error(`expected ${expected}, but got ${actual}`);
+  }
+}
+
 async function testClient(client: Client) {
   const versionResult = await client.call(messages.Version.Get({}));
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
+
+  const input = 256;
+
+  client.onRequest(messages.Test.DoubleRequest, req => {
+    console.log(`<-- Doubling locally!`);
+    return { number: req.params.number * 2 };
+  });
+
+  const dtres = await client.call(
+    messages.Test.DoubleTwiceRequest({
+      number: input,
+    }),
+  );
+
+  assertEqual(dtres.number, input * 4);
+  console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
 
   const apiKey = process.env.ITCH_TEST_ACCOUNT_TOKEN;
   if (!apiKey) {
