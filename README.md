@@ -1,5 +1,9 @@
 # node-buse
 
+![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)
+[![Build Status](https://travis-ci.org/itchio/node-buse.svg?branch=master)](https://travis-ci.org/itchio/node-buse)
+[![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+
 node-buse handles:
 
   * launching [butler](https://itch.io/docs/butler) in service mode
