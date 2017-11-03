@@ -1,7 +1,7 @@
-import { Service, requests } from "..";
+import { Instance, requests } from "..";
 
 async function main() {
-  let s = new Service();
+  let s = new Instance();
 
   s.onClient(async client => {
     const versionResult = await client.call(requests.Version.Get({}));

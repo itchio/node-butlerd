@@ -1,0 +1,10 @@
+language: node_js
+node_js:
+    - "8"
+
+script:
+    - wget https://dl.itch.ovh/butler/linux-amd64/cave-commands/butler
+    - chmod +x butler
+    - export "PATH=$PATH:$PWD"
+    - butler -V
+    - npm test

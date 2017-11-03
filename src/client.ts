@@ -1,7 +1,7 @@
 import { Socket, createConnection } from "net";
 import * as split2 from "split2";
 
-var debug = require("debug")("butler:client");
+var debug = require("debug")("buse:client");
 
 export enum StandardErrorCode {
   ParseError = -32700,

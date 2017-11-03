@@ -2,13 +2,13 @@ import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
 import { Client } from "./client";
 
-const debug = require("debug")("butler:service");
+const debug = require("debug")("buse:instance");
 
 export interface IButlerOpts {}
 
 export type ClientListener = (c: Client) => void;
 
-export class Service {
+export class Instance {
   process: ChildProcess;
   _promise: Promise<any>;
   cancelled = false;

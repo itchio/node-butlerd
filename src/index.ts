@@ -1,4 +1,4 @@
 export * from "./client";
-export * from "./service";
+export * from "./instance";
 import * as allRequests from "./requests";
 export const requests = allRequests;
