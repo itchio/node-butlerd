@@ -45,6 +45,14 @@ export interface OperationResult {
   success: boolean;
   errorMessage?: string;
   errorStack?: string;
+
+  installResult?: InstallResult;
+}
+
+export interface InstallResult {
+  game: itchio.Game;
+  upload: itchio.Upload;
+  build?: itchio.Build;
 }
 
 export const Version = {
