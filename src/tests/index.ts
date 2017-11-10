@@ -76,7 +76,7 @@ async function testClient(client: Client) {
         game: {
           id: 59362,
           title: "Neverjam",
-        },
+        } as any, // cheating a bit to avoid nulling many fields
         installFolder: "./prefix/install",
         credentials: {
           apiKey,

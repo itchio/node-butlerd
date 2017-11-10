@@ -5,7 +5,7 @@ import {
   INotification,
   createNotification,
 } from "./client";
-import * as itchio from "./itchio";
+import * as itchio from "ts-itchio-api";
 
 export interface OperationStartParams {
   stagingFolder: string;
