@@ -8,8 +8,7 @@
     "prepublish": "npm run compile",
     "compile": "tsc",
     "test": "npm run compile && npm run tape",
-    "tape": "node lib/tests/index.js",
-    "generate": "node generate.js"
+    "tape": "node lib/tests/index.js"
   },
   "repository": {
     "type": "git",
