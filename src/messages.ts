@@ -79,6 +79,18 @@ export const Log = createNotification<{
   message: string;
 }>("Log");
 
+export const TaskStarted = createNotification<{
+  reason: string;
+  type: string;
+  caveId?: string;
+  game: itchio.Game;
+  upload: itchio.Upload;
+  build: itchio.Build;
+  totalSize?: number;
+}>("TaskStarted");
+
+export const TaskEnded = createNotification<{}>("TaskEnded");
+
 export interface DoublePayload {
   number: number;
 }
