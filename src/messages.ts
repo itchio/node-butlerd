@@ -74,6 +74,10 @@ export const Operation = {
   ),
 };
 
+export const PickUpload = createRequest<PickUploadParams, PickUploadResult>(
+  "PickUpload",
+);
+
 export const Log = createNotification<{
   level: string;
   message: string;
