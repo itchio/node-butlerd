@@ -55,6 +55,15 @@ export interface InstallResult {
   build?: itchio.Build;
 }
 
+export interface GameFindUploadsParams {
+  game: itchio.Game;
+  credentials: GameCredentials;
+}
+
+export interface GameFindUploadsResult {
+  uploads: itchio.Upload[];
+}
+
 export const Version = {
   Get: createRequest<
     {},
@@ -71,6 +80,12 @@ export const Operation = {
   ),
   Progress: createNotification<OperationProgressNotification>(
     "Operation.Progress",
+  ),
+};
+
+export const Game = {
+  FindUploads: createRequest<GameFindUploadsParams, GameFindUploadsResult>(
+    "Game.FindUploads",
   ),
 };
 
