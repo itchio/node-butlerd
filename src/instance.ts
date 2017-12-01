@@ -43,6 +43,8 @@ export class Instance {
         reject(err);
       });
 
+      let errLines = [];
+
       this.process.stdout.pipe(split2()).on("data", (line: string) => {
         let data: any;
         try {
@@ -58,6 +60,14 @@ export class Instance {
             this.client
               .connect(data.value.address)
               .then(() => {
+                // TODO: figure out if we need to handle this.cancelled here
+                this.client.onError(e => {
+                  reject(
+                    new Error(
+                      `${e}, butler error log:\n${errLines.join("\n")}`,
+                    ),
+                  );
+                });
                 return this.clientListener(this.client);
               })
               .catch(e => reject(e));
@@ -68,6 +78,7 @@ export class Instance {
 
       this.process.stderr.pipe(split2()).on("data", (line: string) => {
         debug(`[err] ${line}`);
+        errLines.push(line);
       });
     });
   }

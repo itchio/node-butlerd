@@ -108,7 +108,7 @@ interface INotificationHandlers {
   [method: string]: INotificationHandler<any>;
 }
 
-export type IErrorHandler = (e: RpcError) => void;
+export type IErrorHandler = (e: Error) => void;
 
 export class Client {
   socket: Socket;
@@ -149,6 +149,9 @@ export class Client {
           return;
         }
         console.warn(`json-rpc socket error: ${e.message}`);
+        if (this.errorHandler) {
+          this.errorHandler(e);
+        }
         this.socket = null;
       });
 
