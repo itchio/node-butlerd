@@ -26,6 +26,7 @@ export interface InstallParams {
   upload?: itchio.Upload;
   build?: itchio.Build;
   credentials: GameCredentials;
+  fresh: boolean;
 }
 
 export interface GameCredentials {
