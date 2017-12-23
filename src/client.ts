@@ -89,6 +89,15 @@ export interface RpcError {
   data?: any;
 }
 
+export class RequestError extends Error {
+  rpcError: RpcError;
+
+  constructor(rpcError: RpcError) {
+    super(`JSON-RPC error ${rpcError.code}: ${rpcError.message}`);
+    this.rpcError = rpcError;
+  }
+}
+
 interface IResultPromises {
   [key: number]: {
     resolve: (payload: any) => void;
@@ -118,7 +127,7 @@ export class Client {
   private errorHandler: IErrorHandler = null;
   idSeed = 0;
 
-  constructor() {}
+  constructor() { }
 
   generateID(): number {
     return this.idSeed++;
@@ -357,9 +366,7 @@ export class Client {
         return;
       }
 
-      promise.reject(
-        new Error(`JSON-RPC error ${obj.error.code}: ${obj.error.message}`),
-      );
+      promise.reject(new RequestError(obj.error));
       delete this.resultPromises[obj.id];
       return;
     }
