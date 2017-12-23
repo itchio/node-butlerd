@@ -14,11 +14,11 @@ export interface OperationStartParams {
   installParams?: InstallParams;
 }
 
-export interface OperationDiscardParams {
+export interface OperationCancelParams {
   id: string;
 }
 
-export interface OperationDiscardResult { }
+export interface OperationCancelResult { }
 
 export interface InstallParams {
   game: itchio.Game;
@@ -86,8 +86,8 @@ export const Operation = {
   Start: createRequest<OperationStartParams, OperationResult>(
     "Operation.Start",
   ),
-  Discard: createRequest<OperationDiscardParams, OperationDiscardResult>(
-    "Operation.Discard",
+  Cancel: createRequest<OperationCancelParams, OperationCancelResult>(
+    "Operation.Cancel",
   ),
   Progress: createNotification<OperationProgressNotification>(
     "Operation.Progress",
