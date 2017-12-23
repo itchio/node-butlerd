@@ -8,10 +8,17 @@ import {
 import * as itchio from "ts-itchio-api";
 
 export interface OperationStartParams {
+  id: string;
   stagingFolder: string;
   operation: "install";
   installParams?: InstallParams;
 }
+
+export interface OperationDiscardParams {
+  id: string;
+}
+
+export interface OperationDiscardResult { }
 
 export interface InstallParams {
   game: itchio.Game;
@@ -71,12 +78,15 @@ export const Version = {
       version: string;
       versionString: string;
     }
-  >("Version.Get"),
+    >("Version.Get"),
 };
 
 export const Operation = {
   Start: createRequest<OperationStartParams, OperationResult>(
     "Operation.Start",
+  ),
+  Discard: createRequest<OperationDiscardParams, OperationDiscardResult>(
+    "Operation.Discard",
   ),
   Progress: createNotification<OperationProgressNotification>(
     "Operation.Progress",

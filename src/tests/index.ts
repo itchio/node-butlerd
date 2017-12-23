@@ -70,6 +70,7 @@ async function testClient(client: Client) {
 
   const opResult = await client.call(
     messages.Operation.Start({
+      id: "foobar",
       operation: "install",
       stagingFolder: "./prefix/staging",
       installParams: {
