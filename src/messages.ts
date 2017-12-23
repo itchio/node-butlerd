@@ -131,3 +131,7 @@ export const Test = {
   ),
   DoubleRequest: createRequest<DoublePayload, DoublePayload>("Test.Double"),
 };
+
+export const Codes = {
+  OperationCancelled: 499,
+};
