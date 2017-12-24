@@ -78,7 +78,7 @@ export class Instance {
               .catch(e => reject(e));
             return;
           }
-        } else if (data.type === "log") {
+        } else if (debug.enabled && data.type === "log") {
           debug(`[${data.level}] ${data.message}`)
         }
       });
