@@ -19,10 +19,10 @@ export class Instance {
 
   constructor(butlerOpts: IButlerOpts = {}) {
     this._promise = new Promise((resolve, reject) => {
-      debug("spawning butler...");
       let butlerArgs = ["--json", "service"];
+      debug(`spawning butler with args ${butlerArgs.join(" ")}...`);
       if (debug.enabled) {
-        butlerArgs = [...butlerArgs, "-v"];
+        butlerArgs = [...butlerArgs, "--verbose"];
       }
 
       this.process = spawn("butler", butlerArgs, {
