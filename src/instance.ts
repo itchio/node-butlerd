@@ -4,7 +4,7 @@ import { Client } from "./client";
 
 const debug = require("debug")("buse:instance");
 
-export interface IButlerOpts {}
+export interface IButlerOpts { }
 
 export type ClientListener = (c: Client) => Promise<void>;
 
@@ -20,7 +20,12 @@ export class Instance {
   constructor(butlerOpts: IButlerOpts = {}) {
     this._promise = new Promise((resolve, reject) => {
       debug("spawning butler...");
-      this.process = spawn("butler", ["--json", "service"], {
+      let butlerArgs = ["--json", "service"];
+      if (debug.enabled) {
+        butlerArgs = [...butlerArgs, "-v"];
+      }
+
+      this.process = spawn("butler", butlerArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -73,6 +78,8 @@ export class Instance {
               .catch(e => reject(e));
             return;
           }
+        } else if (data.type === "log") {
+          debug(`[${data.level}] ${data.message}`)
         }
       });
 
