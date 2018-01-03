@@ -10,8 +10,9 @@ import * as itchio from "ts-itchio-api";
 export interface OperationStartParams {
   id: string;
   stagingFolder: string;
-  operation: "install";
+  operation: "install" | "uninstall";
   installParams?: InstallParams;
+  uninstallParams?: UninstallParams;
 }
 
 export interface OperationCancelParams {
@@ -27,6 +28,10 @@ export interface InstallParams {
   build?: itchio.Build;
   credentials: GameCredentials;
   fresh: boolean;
+}
+
+export interface UninstallParams {
+  installFolder: string;
 }
 
 export interface GameCredentials {
@@ -112,7 +117,6 @@ export const Log = createNotification<{
 export const TaskStarted = createNotification<{
   reason: string;
   type: string;
-  caveId?: string;
   game: itchio.Game;
   upload: itchio.Upload;
   build: itchio.Build;
