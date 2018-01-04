@@ -89,11 +89,22 @@ export interface RpcError {
   data?: any;
 }
 
+function formatRpcError(rpcError: RpcError): string {
+  if (rpcError.code === StandardErrorCode.InternalError) {
+    // don't prefix internal errors, for readability.
+    // if a `RequestError` is caught, it can still be
+    // detected by checking `.rpcError`
+    return rpcError.message;
+  }
+
+  return `JSON-RPC error ${rpcError.code}: ${rpcError.message}`
+}
+
 export class RequestError extends Error {
   rpcError: RpcError;
 
   constructor(rpcError: RpcError) {
-    super(`JSON-RPC error ${rpcError.code}: ${rpcError.message}`);
+    super(formatRpcError(rpcError));
     this.rpcError = rpcError;
   }
 }
