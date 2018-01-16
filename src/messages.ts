@@ -48,6 +48,20 @@ export interface PickUploadResult {
   index: number;
 }
 
+export interface GetReceiptParams {
+  // muffin
+}
+
+export interface GetReceiptResult {
+  receipt: Receipt;
+}
+
+export interface Receipt {
+  upload: itchio.Upload;
+  build?: itchio.Build;
+  files: string[];
+}
+
 export interface OperationProgressNotification {
   progress: number;
   eta?: number;
@@ -107,6 +121,10 @@ export const Game = {
 
 export const PickUpload = createRequest<PickUploadParams, PickUploadResult>(
   "PickUpload",
+);
+
+export const GetReceipt = createRequest<GetReceiptParams, GetReceiptResult>(
+  "GetReceipt",
 );
 
 export const Log = createNotification<{
