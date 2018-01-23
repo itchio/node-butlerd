@@ -70,8 +70,6 @@ export interface OperationProgressNotification {
 
 export interface OperationResult {
   success: boolean;
-  errorMessage?: string;
-  errorStack?: string;
 }
 
 export interface InstallResult {
