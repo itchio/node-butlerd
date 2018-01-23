@@ -82,7 +82,6 @@ async function testClient(client: Client) {
         credentials: {
           apiKey,
         },
-        fresh: true,
       },
     }),
   );
