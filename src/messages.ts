@@ -72,8 +72,6 @@ export interface OperationResult {
   success: boolean;
   errorMessage?: string;
   errorStack?: string;
-
-  installResult?: InstallResult;
 }
 
 export interface InstallResult {
@@ -132,16 +130,40 @@ export const Log = createNotification<{
   message: string;
 }>("Log");
 
+export enum TaskReason {
+  Install = "install",
+  Uninstall = "uninstall",
+}
+
+export enum TaskType {
+  // something is being downloaded to the staging folder
+  Download = "download",
+  // something is being extracted (directly by butler, or by
+  // a third-party installer)
+  Install = "install",
+  // something is being wiped (directly by butler, or by
+  // a third-party installer)
+  Uninstall = "uninstall",
+  // a patch is being applied
+  Update = "update",
+  // files are being compared with a build's signature,
+  // and healed from its archive or any other suitable source
+  Heal = "heal",
+}
+
 export const TaskStarted = createNotification<{
-  reason: string;
-  type: string;
+  reason: TaskReason;
+  type: TaskType;
   game: itchio.Game;
   upload: itchio.Upload;
   build: itchio.Build;
   totalSize?: number;
 }>("TaskStarted");
 
-export const TaskEnded = createNotification<{}>("TaskEnded");
+export const TaskEnded = createNotification<{
+  type: TaskType;
+  installResult?: InstallResult;
+}>("TaskEnded");
 
 export interface DoublePayload {
   number: number;
