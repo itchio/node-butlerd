@@ -156,10 +156,10 @@ export const TaskStarted = createNotification<{
   totalSize?: number;
 }>("TaskStarted");
 
-export const TaskEnded = createNotification<{
+export const TaskSucceeded = createNotification<{
   type: TaskType;
   installResult?: InstallResult;
-}>("TaskEnded");
+}>("TaskSucceeded");
 
 export interface DoublePayload {
   number: number;
