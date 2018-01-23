@@ -68,9 +68,7 @@ export interface OperationProgressNotification {
   bps?: number;
 }
 
-export interface OperationResult {
-  success: boolean;
-}
+export interface OperationResult { }
 
 export interface InstallResult {
   game: itchio.Game;
