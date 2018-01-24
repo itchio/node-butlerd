@@ -173,4 +173,5 @@ export const Test = {
 
 export const Codes = {
   OperationCancelled: 499,
+  OperationAborted: 410,
 };
