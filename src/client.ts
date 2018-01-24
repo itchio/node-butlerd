@@ -314,7 +314,23 @@ export class Client {
         return;
       }
 
-      handler(obj);
+      let retval: any;
+      try {
+        retval = handler(obj);
+      } catch (e) {
+        console.warn(`notification handler error: ${e.stack}`);
+        if (this.errorHandler) {
+          this.errorHandler(e);
+        }
+      }
+
+      Promise.resolve(retval).catch((e) => {
+        console.warn(`notification handler async error: ${e.stack}`);
+        if (this.errorHandler) {
+          this.errorHandler(e);
+        }
+      });
+
       return;
     }
 
