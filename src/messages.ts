@@ -7,6 +7,10 @@ import {
 } from "./client";
 import * as itchio from "ts-itchio-api";
 
+//---------------------------------------------------------------------
+// Operate
+//---------------------------------------------------------------------
+
 export interface OperationStartParams {
   id: string;
   stagingFolder: string;
@@ -19,7 +23,7 @@ export interface OperationCancelParams {
   id: string;
 }
 
-export interface OperationCancelResult { }
+export interface OperationCancelResult {}
 
 export interface InstallParams {
   game: itchio.Game;
@@ -67,7 +71,7 @@ export interface OperationProgressNotification {
   bps?: number;
 }
 
-export interface OperationResult { }
+export interface OperationResult {}
 
 export interface InstallResult {
   game: itchio.Game;
@@ -91,7 +95,7 @@ export const Version = {
       version: string;
       versionString: string;
     }
-    >("Version.Get"),
+  >("Version.Get"),
 };
 
 export const Operation = {
@@ -160,6 +164,50 @@ export const TaskSucceeded = createNotification<{
   installResult?: InstallResult;
 }>("TaskSucceeded");
 
+//---------------------------------------------------------------------
+// CleanDownloads
+//---------------------------------------------------------------------
+
+export interface CleanDownloadsEntry {
+  path: string;
+  size: number;
+}
+
+export interface CleanDownloadsSearchParams {
+  roots: string[];
+  whitelist: string[];
+}
+export interface CleanDownloadsSearchResult {
+  entries: CleanDownloadsEntry[];
+}
+
+export interface CleanDownloadsApplyParams {
+  entries: CleanDownloadsEntry[];
+}
+export interface CleanDownloadsApplyResult {}
+
+export const CleanDownloads = {
+  Search: createRequest<CleanDownloadsSearchParams, CleanDownloadsSearchResult>(
+    "CleanDownloads.Search",
+  ),
+  Apply: createRequest<CleanDownloadsApplyParams, CleanDownloadsApplyResult>(
+    "CleanDownloads.Apply",
+  ),
+};
+
+//---------------------------------------------------------------------
+// Error codes
+//---------------------------------------------------------------------
+
+export const Codes = {
+  OperationCancelled: 499,
+  OperationAborted: 410,
+};
+
+//---------------------------------------------------------------------
+// Miscellaneous
+//---------------------------------------------------------------------
+
 export interface DoublePayload {
   number: number;
 }
@@ -169,9 +217,4 @@ export const Test = {
     "Test.DoubleTwice",
   ),
   DoubleRequest: createRequest<DoublePayload, DoublePayload>("Test.Double"),
-};
-
-export const Codes = {
-  OperationCancelled: 499,
-  OperationAborted: 410,
 };
