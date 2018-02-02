@@ -170,10 +170,17 @@ export const TaskSucceeded = createNotification<{
 
 export interface LaunchParams {
   installFolder: string;
+  game: itchio.Game;
+  upload: itchio.Upload;
+  build: itchio.Build;
   verdict: Verdict;
-  prereqsDir: string;
 
+  prereqsDir: string;
   forcePrereqs?: boolean;
+
+  sandbox?: boolean;
+
+  credentials: GameCredentials;
 }
 
 export interface LaunchResult {}
