@@ -197,6 +197,14 @@ export const LaunchExited = createNotification<LaunchExitedNotification>(
   "LaunchExited",
 );
 
+export interface PickManifestActionParams {
+  actions: ManifestAction[];
+}
+
+export interface PickManifestActionResult {
+  name: string;
+}
+
 export interface ShellLaunchParams {
   itemPath: string;
 }
@@ -222,6 +230,44 @@ export interface Verdict {
   basePath: string;
   totalSize: number;
   candidates?: Candidate[];
+}
+
+export type ItchPlatform = "windows" | "osx" | "linux";
+
+export interface IManifest {
+  actions: ManifestAction[];
+  prereqs: ManifestPrereq[];
+}
+
+// see https://itch.io/docs/itch/integrating/manifest.html
+export interface ManifestAction {
+  /** human-readable or standard name */
+  name: string;
+
+  /** file path (relative to manifest or absolute), URL, etc. */
+  path: string;
+
+  /** icon name (see static/fonts/icomoon/demo.html, don't include `icon-` prefix) */
+  icon: string;
+
+  /** command-line arguments */
+  args: string[];
+
+  /** sandbox opt-in */
+  sandbox?: boolean;
+
+  /** requested API scope */
+  scope?: string;
+
+  /** restrict this action to a platform */
+  platform?: ItchPlatform;
+
+  /** don't redirect stdout/stderr, open in new console window */
+  console?: boolean;
+}
+
+export interface ManifestPrereq {
+  name: string;
 }
 
 export type Flavor =
