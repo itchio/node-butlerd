@@ -165,6 +165,47 @@ export const TaskSucceeded = createNotification<{
 }>("TaskSucceeded");
 
 //---------------------------------------------------------------------
+// Launch
+//---------------------------------------------------------------------
+
+export interface LaunchParams {
+  installFolder: string;
+}
+
+export interface LaunchResult {}
+
+export const Launch = createRequest<LaunchParams, LaunchResult>("Launch");
+
+export interface LaunchRunningNotification {}
+export const LaunchRunning = createNotification<LaunchRunningNotification>(
+  "LaunchRunning",
+);
+
+export interface LaunchExitedNotification {}
+export const LaunchExited = createNotification<LaunchExitedNotification>(
+  "LaunchExited",
+);
+
+export interface ShellLaunchParams {
+  itemPath: string;
+}
+
+export interface ShellLaunchResult {}
+export const ShellLaunch = createRequest<ShellLaunchParams, ShellLaunchResult>(
+  "ShellLaunch",
+);
+
+export interface HTMLLaunchParams {
+  rootFolder: string;
+  indexPath: string;
+}
+
+export interface HTMLLaunchResult {}
+export const HTMLLaunch = createRequest<HTMLLaunchParams, HTMLLaunchResult>(
+  "HTMLLaunch",
+);
+
+//---------------------------------------------------------------------
 // CleanDownloads
 //---------------------------------------------------------------------
 
