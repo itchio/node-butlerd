@@ -218,6 +218,14 @@ export const ShellLaunch = createRequest<ShellLaunchParams, ShellLaunchResult>(
   "ShellLaunch",
 );
 
+export interface URLLaunchParams {
+  url: string;
+}
+export interface URLLaunchResult {}
+export const URLLaunch = createRequest<URLLaunchParams, URLLaunchResult>(
+  "URLLaunch",
+);
+
 export interface HTMLLaunchParams {
   rootFolder: string;
   indexPath: string;
