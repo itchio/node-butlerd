@@ -170,6 +170,10 @@ export const TaskSucceeded = createNotification<{
 
 export interface LaunchParams {
   installFolder: string;
+  verdict: Verdict;
+  prereqsDir: string;
+
+  forcePrereqs?: boolean;
 }
 
 export interface LaunchResult {}
@@ -204,6 +208,42 @@ export interface HTMLLaunchResult {}
 export const HTMLLaunch = createRequest<HTMLLaunchParams, HTMLLaunchResult>(
   "HTMLLaunch",
 );
+
+export interface Candidate {}
+
+export interface Verdict {
+  basePath: string;
+  totalSize: number;
+  candidates?: Candidate[];
+}
+
+export type Flavor =
+  | "linux"
+  | "macos"
+  | "app-macos"
+  | "windows"
+  | "script"
+  | "windows-script"
+  | "jar"
+  | "html"
+  | "love";
+
+export type Arch = "386" | "amd64";
+
+export interface Candidate {
+  path: string;
+  depth: number;
+  flavor: Flavor;
+  arch?: Arch;
+  size: number;
+  windowsInfo?: {
+    gui?: boolean;
+    installerType?: string;
+  };
+  scriptInfo?: {
+    interpreter?: string;
+  };
+}
 
 //---------------------------------------------------------------------
 // CleanDownloads
