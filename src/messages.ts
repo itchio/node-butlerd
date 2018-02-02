@@ -221,6 +221,10 @@ export const ShellLaunch = createRequest<ShellLaunchParams, ShellLaunchResult>(
 export interface HTMLLaunchParams {
   rootFolder: string;
   indexPath: string;
+  args: string[];
+  env: {
+    [key: string]: string;
+  };
 }
 
 export interface HTMLLaunchResult {}
