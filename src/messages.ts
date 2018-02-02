@@ -204,6 +204,10 @@ export interface PickManifestActionParams {
 export interface PickManifestActionResult {
   name: string;
 }
+export const PickManifestAction = createRequest<
+  PickManifestActionParams,
+  PickManifestActionResult
+>("PickManifestAction");
 
 export interface ShellLaunchParams {
   itemPath: string;
