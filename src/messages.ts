@@ -295,6 +295,20 @@ export const PrereqsEnded = createNotification<PrereqsEndedNotification>(
   "PrereqsEnded",
 );
 
+export interface PrereqsFailedParams {
+  error: string;
+  errorStack: string;
+}
+
+export interface PrereqsFailedResult {
+  continue: boolean;
+}
+
+export const PrereqsFailed = createRequest<
+  PrereqsFailedParams,
+  PrereqsFailedResult
+>("PrereqsFailed");
+
 // see https://itch.io/docs/itch/integrating/manifest.html
 export interface ManifestAction {
   /** human-readable or standard name */
