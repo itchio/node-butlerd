@@ -255,6 +255,46 @@ export interface IManifest {
   prereqs: ManifestPrereq[];
 }
 
+export interface PrereqsStartedNotification {
+  tasks: {
+    [key: string]: PrereqTask;
+  };
+}
+
+export interface PrereqTask {
+  fullName: string;
+  order: number;
+}
+
+export const PrereqsStarted = createNotification<PrereqsStartedNotification>(
+  "PrereqsStarted",
+);
+
+export enum PrereqStatus {
+  Pending = "pending",
+  Downloading = "downloading",
+  Ready = "ready",
+  Installing = "installing",
+  Done = "done",
+}
+
+export interface PrereqsTaskStateNotification {
+  name: string;
+  status: PrereqStatus;
+  progress: number;
+  eta: number;
+}
+
+export const PrereqsTaskState = createNotification<
+  PrereqsTaskStateNotification
+>("PrereqsTaskState");
+
+export interface PrereqsEndedNotification {}
+
+export const PrereqsEnded = createNotification<PrereqsEndedNotification>(
+  "PrereqsEnded",
+);
+
 // see https://itch.io/docs/itch/integrating/manifest.html
 export interface ManifestAction {
   /** human-readable or standard name */
