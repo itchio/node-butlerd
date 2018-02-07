@@ -283,6 +283,7 @@ export interface PrereqsTaskStateNotification {
   status: PrereqStatus;
   progress: number;
   eta: number;
+  bps: number;
 }
 
 export const PrereqsTaskState = createNotification<
