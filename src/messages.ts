@@ -240,6 +240,30 @@ export const HTMLLaunch = createRequest<HTMLLaunchParams, HTMLLaunchResult>(
   "HTMLLaunch",
 );
 
+export interface SaveVerdictParams {
+  verdict: Verdict;
+}
+
+export interface SaveVerdictResult {}
+
+export interface SaveVerdictParams {
+  verdict: Verdict;
+}
+
+export const SaveVerdict = createRequest<SaveVerdictParams, SaveVerdictResult>(
+  "SaveVerdict",
+);
+
+export interface AllowSandboxSetupParams {}
+export interface AllowSandboxSetupResult {
+  allow: boolean;
+}
+
+export const AllowSandboxSetup = createRequest<
+  AllowSandboxSetupParams,
+  AllowSandboxSetupResult
+>("AllowSandboxSetup");
+
 export interface Candidate {}
 
 export interface Verdict {
