@@ -4,7 +4,9 @@ import { Client } from "./client";
 
 const debug = require("debug")("buse:instance");
 
-export interface IButlerOpts { }
+export interface IButlerOpts {
+  butlerExecutable: string;
+}
 
 export type ClientListener = (c: Client) => Promise<void>;
 
@@ -17,7 +19,7 @@ export class Instance {
     throw new Error("got buse client but no callback was registered to get it");
   };
 
-  constructor(butlerOpts: IButlerOpts = {}) {
+  constructor(butlerOpts: IButlerOpts) {
     this._promise = new Promise((resolve, reject) => {
       let butlerArgs = ["--json", "service"];
       debug(`spawning butler with args ${butlerArgs.join(" ")}...`);
@@ -25,7 +27,9 @@ export class Instance {
         butlerArgs = [...butlerArgs, "--verbose"];
       }
 
-      this.process = spawn("butler", butlerArgs, {
+      let { butlerExecutable = "butler" } = butlerOpts;
+
+      this.process = spawn(butlerExecutable, butlerArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -79,7 +83,7 @@ export class Instance {
             return;
           }
         } else if (debug.enabled && data.type === "log") {
-          debug(`[${data.level}] ${data.message}`)
+          debug(`[${data.level}] ${data.message}`);
         }
       });
 
