@@ -165,6 +165,35 @@ export const TaskSucceeded = createNotification<{
 }>("TaskSucceeded");
 
 //---------------------------------------------------------------------
+// CheckUpdate
+//---------------------------------------------------------------------
+
+export interface CheckUpdateParams {
+  items: CheckUpdateItem[];
+}
+
+export interface CheckUpdateItem {
+  itemId: string;
+  installedAt: string;
+  game: itchio.Game;
+  upload: itchio.Game;
+  build: itchio.Game;
+  credentials: GameCredentials;
+}
+
+export interface CheckUpdateResult {
+  updates: GameUpdate[];
+  warnings: string[];
+}
+
+export interface GameUpdate {
+  itemId: string;
+  game: itchio.Game;
+  upload: itchio.Upload;
+  build: itchio.Build;
+}
+
+//---------------------------------------------------------------------
 // Launch
 //---------------------------------------------------------------------
 
