@@ -176,8 +176,8 @@ export interface CheckUpdateItem {
   itemId: string;
   installedAt: string;
   game: itchio.Game;
-  upload: itchio.Game;
-  build: itchio.Game;
+  upload: itchio.Upload;
+  build: itchio.Build;
   credentials: GameCredentials;
 }
 
