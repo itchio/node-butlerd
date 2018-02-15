@@ -193,7 +193,17 @@ export interface GameUpdate {
   build: itchio.Build;
 }
 
-export const CheckUpdate = createRequest<CheckUpdateParams, CheckUpdateResult>("CheckUpdate");
+export const CheckUpdate = createRequest<CheckUpdateParams, CheckUpdateResult>(
+  "CheckUpdate",
+);
+
+export interface GameUpdateAvailableNotification {
+  update: GameUpdate;
+}
+
+export const GameUpdateAvailable = createNotification<
+  GameUpdateAvailableNotification
+>("GameUpdateAvailable");
 
 //---------------------------------------------------------------------
 // Launch
