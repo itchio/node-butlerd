@@ -193,6 +193,8 @@ export interface GameUpdate {
   build: itchio.Build;
 }
 
+export const CheckUpdate = createRequest<CheckUpdateParams, CheckUpdateResult>("CheckUpdate");
+
 //---------------------------------------------------------------------
 // Launch
 //---------------------------------------------------------------------
