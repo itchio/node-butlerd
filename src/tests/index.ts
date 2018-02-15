@@ -1,9 +1,12 @@
 import { Instance, messages, Client } from "..";
 import * as fs from "fs";
 import * as rimraf from "rimraf";
+import * as which from "which";
 
 async function main() {
-  let s = new Instance();
+  let s = new Instance({
+    butlerExecutable: which.sync("butler"),
+  });
 
   s.onClient(async client => {
     await testClient(client);
