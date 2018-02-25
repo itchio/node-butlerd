@@ -1,5 +1,4 @@
-{
-  "name": "node-buse",
+{ "name": "node-buse",
   "version": "1.2.0",
   "description": "Node.js library for the butler API",
   "main": "lib/index.js",
@@ -38,7 +37,6 @@
   },
   "dependencies": {
     "debug": "^3.1.0",
-    "split2": "^2.2.0",
-    "ts-itchio-api": "^1.1.0"
+    "split2": "^2.2.0"
   }
 }

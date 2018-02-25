@@ -24,18 +24,18 @@ function assertEqual(actual: number, expected: number) {
 }
 
 async function testClient(client: Client) {
-  const versionResult = await client.call(messages.Version.Get({}));
+  const versionResult = await client.call(messages.VersionGet({}));
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
   const input = 256;
 
-  client.onRequest(messages.Test.DoubleRequest, req => {
+  client.onRequest(messages.TestDouble, req => {
     console.log(`<-- Doubling locally!`);
     return { number: req.params.number * 2 };
   });
 
   const dtres = await client.call(
-    messages.Test.DoubleTwiceRequest({
+    messages.TestDoubleTwice({
       number: input,
     }),
   );
@@ -64,7 +64,7 @@ async function testClient(client: Client) {
 
   let lastProgress = 0.0;
 
-  client.onNotification(messages.Operation.Progress, ({ params }) => {
+  client.onNotification(messages.OperationProgress, ({ params }) => {
     if (params.progress - lastProgress >= 0.2) {
       console.log(`${(params.progress * 100).toFixed(2)}% done...`);
       lastProgress = params.progress;
@@ -72,9 +72,9 @@ async function testClient(client: Client) {
   });
 
   const opResult = await client.call(
-    messages.Operation.Start({
+    messages.OperationStart({
       id: "foobar",
-      operation: "install",
+      operation: messages.Operation.Install,
       stagingFolder: "./prefix/staging",
       installParams: {
         game: {
