@@ -26,6 +26,10 @@ get out-of-sync with the actual code
 
 Instead, please head over to the [tests](https://github.com/itchio/node-buse/tree/master/src/tests) - they ought to be readable!
 
+Note that this repository does not include any request or notification definitions.
+These can be generated with `busegen ts`, see <https://github.com/itchio/butler> for
+the busegen tool.
+
 ## License
 
 node-buse is released under the MIT license, see the LICENSE file.
