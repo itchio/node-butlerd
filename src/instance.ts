@@ -6,6 +6,7 @@ const debug = require("debug")("buse:instance");
 
 export interface IButlerOpts {
   butlerExecutable: string;
+  args?: string[];
 }
 
 export type ClientListener = (c: Client) => Promise<void>;
@@ -22,10 +23,14 @@ export class Instance {
   constructor(butlerOpts: IButlerOpts) {
     this._promise = new Promise((resolve, reject) => {
       let butlerArgs = ["--json", "service"];
-      debug(`spawning butler with args ${butlerArgs.join(" ")}...`);
       if (debug.enabled) {
         butlerArgs = [...butlerArgs, "--verbose"];
       }
+      if (butlerOpts.args) {
+        butlerArgs = [...butlerArgs, ...butlerOpts.args];
+      }
+
+      debug(`spawning butler with args ${butlerArgs.join(" ")}...`);
 
       let { butlerExecutable = "butler" } = butlerOpts;
 
