@@ -13,7 +13,7 @@ export type ClientListener = (c: Client) => Promise<void>;
 
 export class Instance {
   process: ChildProcess;
-  _promise: Promise<any>;
+  _promise: Promise<void>;
   cancelled = false;
   client: Client;
   clientListener: ClientListener = (client: Client) => {
@@ -51,7 +51,11 @@ export class Instance {
           return;
         }
 
-        reject(`butler exit code ${code}, error log:\n${errLines.join("\n")}`);
+        reject(
+          new Error(
+            `butler exit code ${code}, error log:\n${errLines.join("\n")}`,
+          ),
+        );
       });
 
       this.process.on("error", err => {
