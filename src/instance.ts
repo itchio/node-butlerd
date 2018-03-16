@@ -38,26 +38,26 @@ export class Instance {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
+      let errLines = [];
+
       this.process.on("close", (code: number, signal: string) => {
         debug("butler closed, signal %s, code %d", signal, code);
         if (signal) {
           if (this.cancelled) {
-            resolve(0);
+            resolve();
             return;
           }
           reject(new Error(`Killed by signal ${signal}`));
           return;
         }
 
-        resolve(code);
+        reject(`butler exit code ${code}, error log:\n${errLines.join("\n")}`);
       });
 
       this.process.on("error", err => {
         debug("butler had error: %s", err.stack || err.message);
         reject(err);
       });
-
-      let errLines = [];
 
       this.process.stdout.pipe(split2()).on("data", (line: string) => {
         let data: any;
