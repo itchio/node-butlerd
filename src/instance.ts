@@ -51,6 +51,10 @@ export class Instance {
           return;
         }
 
+        if (code === 0) {
+          resolve();
+          return;
+        }
         reject(
           new Error(
             `butler exit code ${code}, error log:\n${errLines.join("\n")}`,
