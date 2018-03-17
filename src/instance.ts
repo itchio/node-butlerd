@@ -21,6 +21,11 @@ export class Instance {
   };
 
   constructor(butlerOpts: IButlerOpts) {
+    let onExit = () => {
+      this.cancel();
+    };
+    process.on("exit", onExit);
+
     this._promise = new Promise((resolve, reject) => {
       let butlerArgs = ["--json", "service"];
       if (debug.enabled) {
@@ -41,6 +46,7 @@ export class Instance {
       let errLines = [];
 
       this.process.on("close", (code: number, signal: string) => {
+        process.removeListener("exit", onExit);
         debug("butler closed, signal %s, code %d", signal, code);
         if (signal) {
           if (this.cancelled) {
@@ -112,6 +118,10 @@ export class Instance {
   }
 
   cancel() {
+    if (this.cancelled) {
+      return;
+    }
+
     this.cancelled = true;
     if (this.client) {
       this.client.close();
