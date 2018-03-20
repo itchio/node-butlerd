@@ -117,20 +117,20 @@ export class Instance {
     this.clientListener = cb;
   }
 
-  cancel() {
-    if (this.cancelled) {
-      return;
-    }
+  cancel(): Promise<void> {
+    if (!this.cancelled) {
+      this.cancelled = true;
 
-    this.cancelled = true;
-    if (this.client) {
-      this.client.close();
-      this.client = null;
-    }
+      if (this.client) {
+        this.client.close();
+        this.client = null;
+      }
 
-    if (this.process) {
-      this.process.kill("SIGINT");
+      if (this.process) {
+        this.process.kill("SIGINT");
+      }
     }
+    return this._promise;
   }
 
   async promise() {

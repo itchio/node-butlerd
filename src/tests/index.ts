@@ -80,7 +80,7 @@ async function testClient(s: Instance, client: Client) {
       console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
     }
 
-    s.cancel();
+    await s.cancel();
 
     let threw = false;
     try {
