@@ -4,6 +4,7 @@ import {
   Client,
   IRequest,
   INotification,
+  CreatorKind,
 } from "../client";
 
 /**

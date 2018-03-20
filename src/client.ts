@@ -11,10 +11,21 @@ export enum StandardErrorCode {
   InternalError = -32603,
 }
 
-export type IRequestCreator<T, U> = (
+export enum CreatorKind {
+  Request = 1,
+  Notification = 2,
+}
+
+export type ICreator = {
+  __kind?: CreatorKind;
+};
+
+export type IRequestCreator<T, U> = ((
   params: T,
-) => (client: Client) => IRequest<T, U>;
-export type INotificationCreator<T> = (params: T) => INotification<T>;
+) => (client: Client) => IRequest<T, U>) &
+  ICreator;
+export type INotificationCreator<T> = ((params: T) => INotification<T>) &
+  ICreator;
 
 export type IResultCreator<T> = (
   id: number | null,
@@ -27,24 +38,42 @@ export enum RequestType {
   Notification = 1,
 }
 
+export const createRequest = <T, U>(method: string): IRequestCreator<T, U> => {
+  let rc = ((params: T) => (client: Client) => ({
+    jsonrpc: "2.0",
+    method,
+    id: client.generateID(),
+    params,
+  })) as IRequestCreator<T, U>;
+  rc.__kind = CreatorKind.Request;
+  return rc;
+};
+
 export const createNotification = <T>(
   method: string,
-  requestType = RequestType.Request,
-): INotificationCreator<T> => (params: T) => ({
-  jsonrpc: "2.0",
-  method,
-  params,
-});
+): INotificationCreator<T> => {
+  let nc = ((params: T) => ({
+    jsonrpc: "2.0",
+    method,
+    params,
+  })) as INotificationCreator<T>;
+  nc.__kind = CreatorKind.Notification;
+  return nc;
+};
 
-export const createRequest = <T, U>(
-  method: string,
-  requestType = RequestType.Request,
-): IRequestCreator<T, U> => (params: T) => (client: Client) => ({
-  jsonrpc: "2.0",
-  method,
-  id: client.generateID(),
-  params,
-});
+export function asRequestCreator(x: ICreator): IRequestCreator<any, any> {
+  if (x.__kind == CreatorKind.Request) {
+    return x as IRequestCreator<any, any>;
+  }
+  return null;
+}
+
+export function asNotificationCreator(x: ICreator): INotificationCreator<any> {
+  if (x.__kind == CreatorKind.Notification) {
+    return x as INotificationCreator<any>;
+  }
+  return null;
+}
 
 export const createResult = <T>(): IResultCreator<T> => (
   id: number | null,
@@ -203,6 +232,25 @@ export class Client {
     this.errorHandler = handler;
   }
 
+  on<T, U>(rc: IRequestCreator<T, U>, handler: (p: T) => Promise<U>);
+  on<T>(nc: INotificationCreator<T>, handler: (p: T) => Promise<void>);
+
+  on(c: ICreator, handler: (p: any) => Promise<any>) {
+    if (c.__kind === CreatorKind.Request) {
+      this.onRequest(
+        c as IRequestCreator<any, any>,
+        async payload => await handler(payload.params),
+      );
+    } else if (c.__kind === CreatorKind.Notification) {
+      this.onNotification(
+        c as INotificationCreator<any>,
+        async payload => await handler(payload.params),
+      );
+    } else {
+      throw new Error(`Unknown creator passed (not request nor notification)`);
+    }
+  }
+
   onRequest<T, U>(rc: IRequestCreator<T, U>, handler: IRequestHandler<T, U>) {
     const sample = rc(null)(this);
     const { method } = sample;
@@ -232,9 +280,8 @@ export class Client {
     const obj = nc(params);
   }
 
-  async call<T, U>(creator: (c: Client) => IRequest<T, U>): Promise<U> {
-    const obj = creator(this);
-
+  async call<T, U>(rc: IRequestCreator<T, U>, params: T): Promise<U> {
+    const obj = rc(params || ({} as T))(this);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
     }

@@ -25,34 +25,32 @@ function assertEqual(actual: any, expected: any) {
 }
 
 async function testClient(s: Instance, client: Client) {
-  const versionResult = await client.call(messages.VersionGet({}));
+  const versionResult = await client.call(messages.VersionGet, {});
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
   const input = 256;
 
-  client.onRequest(messages.TestDouble, req => {
+  client.on(messages.TestDouble, async ({ number }) => {
     console.log(`<-- Doubling locally!`);
-    return { number: req.params.number * 2 };
+    return { number: number * 2 };
   });
 
-  const dtres = await client.call(
-    messages.TestDoubleTwice({
-      number: input,
-    }),
-  );
+  const dtres = await client.call(messages.TestDoubleTwice, {
+    number: input,
+  });
 
   assertEqual(dtres.number, input * 4);
   console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
 
   {
     const c2 = new Client();
-    const connResult = await client.call(messages.ConnectionNew({}));
+    const connResult = await client.call(messages.ConnectionNew, {});
     console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
     await c2.connect(connResult.address);
 
     {
       console.log(`Calling VersionGet on c2...`);
-      const versionResult = await c2.call(messages.VersionGet({}));
+      const versionResult = await c2.call(messages.VersionGet, {});
       console.log(`<-- (c2) Version.Get: ${JSON.stringify(versionResult)}`);
     }
 
@@ -61,7 +59,7 @@ async function testClient(s: Instance, client: Client) {
     let threw = false;
     try {
       console.log(`Calling VersionGet on (closed) c2...`);
-      await c2.call(messages.VersionGet({}));
+      await c2.call(messages.VersionGet, {});
     } catch (e) {
       threw = true;
     }
@@ -72,13 +70,13 @@ async function testClient(s: Instance, client: Client) {
 
   {
     const c3 = new Client();
-    const connResult = await client.call(messages.ConnectionNew({}));
+    const connResult = await client.call(messages.ConnectionNew, {});
     console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
     await c3.connect(connResult.address);
 
     {
       console.log(`Calling VersionGet on c3...`);
-      const versionResult = await c3.call(messages.VersionGet({}));
+      const versionResult = await c3.call(messages.VersionGet, {});
       console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
     }
 
@@ -87,7 +85,7 @@ async function testClient(s: Instance, client: Client) {
     let threw = false;
     try {
       console.log(`Calling VersionGet on (closed) c3...`);
-      await c3.call(messages.VersionGet({}));
+      await c3.call(messages.VersionGet, {});
     } catch (e) {
       threw = true;
     }
