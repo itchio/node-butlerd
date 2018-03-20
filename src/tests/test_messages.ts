@@ -7,6 +7,30 @@ import {
 } from "../client";
 
 /**
+ * Params for Connection.New
+ */
+export interface ConnectionNewParams {
+  // no fields
+}
+
+/**
+ * Result for Connection.New
+ */
+export interface ConnectionNewResult {
+  /** undocumented */
+  address: string;
+}
+
+/**
+ * Ask butler to listen for a new connection, so commands can
+ * be sent to it.
+ */
+export const ConnectionNew = createRequest<
+  ConnectionNewParams,
+  ConnectionNewResult
+>("Connection.New");
+
+/**
  * Params for Version.Get
  */
 export interface VersionGetParams {

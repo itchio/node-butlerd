@@ -97,7 +97,7 @@ function formatRpcError(rpcError: RpcError): string {
     return rpcError.message;
   }
 
-  return `JSON-RPC error ${rpcError.code}: ${rpcError.message}`
+  return `JSON-RPC error ${rpcError.code}: ${rpcError.message}`;
 }
 
 export class RequestError extends Error {
@@ -138,7 +138,7 @@ export class Client {
   private errorHandler: IErrorHandler = null;
   idSeed = 0;
 
-  constructor() { }
+  constructor() {}
 
   generateID(): number {
     return this.idSeed++;
@@ -168,11 +168,16 @@ export class Client {
           // ignore errors, we've closed
           return;
         }
-        console.warn(`json-rpc socket error: ${e.message}`);
         if (this.errorHandler) {
           this.errorHandler(e);
         }
         this.socket = null;
+
+        for (const key of Object.keys(this.resultPromises)) {
+          const rp = this.resultPromises[key];
+          rp.reject(e);
+        }
+        this.resultPromises = {};
       });
 
       socket.on("close", () => {
@@ -234,9 +239,12 @@ export class Client {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
     }
 
-    this.sendRaw(obj);
-
     return new Promise<U>((resolve, reject) => {
+      try {
+        this.sendRaw(obj);
+      } catch (e) {
+        return reject(e);
+      }
       this.resultPromises[obj.id] = { resolve, reject };
     });
   }
@@ -324,7 +332,7 @@ export class Client {
         }
       }
 
-      Promise.resolve(retval).catch((e) => {
+      Promise.resolve(retval).catch(e => {
         console.warn(`notification handler async error: ${e.stack}`);
         if (this.errorHandler) {
           this.errorHandler(e);

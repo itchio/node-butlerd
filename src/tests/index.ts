@@ -10,7 +10,7 @@ async function main() {
   });
 
   s.onClient(async client => {
-    await testClient(client);
+    await testClient(s, client);
 
     s.cancel();
   });
@@ -18,13 +18,13 @@ async function main() {
   await s.promise();
 }
 
-function assertEqual(actual: number, expected: number) {
+function assertEqual(actual: any, expected: any) {
   if (actual != expected) {
     throw new Error(`expected ${expected}, but got ${actual}`);
   }
 }
 
-async function testClient(client: Client) {
+async function testClient(s: Instance, client: Client) {
   const versionResult = await client.call(messages.VersionGet({}));
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
@@ -43,6 +43,58 @@ async function testClient(client: Client) {
 
   assertEqual(dtres.number, input * 4);
   console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
+
+  {
+    const c2 = new Client();
+    const connResult = await client.call(messages.ConnectionNew({}));
+    console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
+    await c2.connect(connResult.address);
+
+    {
+      console.log(`Calling VersionGet on c2...`);
+      const versionResult = await c2.call(messages.VersionGet({}));
+      console.log(`<-- (c2) Version.Get: ${JSON.stringify(versionResult)}`);
+    }
+
+    c2.close();
+
+    let threw = false;
+    try {
+      console.log(`Calling VersionGet on (closed) c2...`);
+      await c2.call(messages.VersionGet({}));
+    } catch (e) {
+      threw = true;
+    }
+
+    assertEqual(threw, true);
+    console.log(`Did throw after close! (c2)`);
+  }
+
+  {
+    const c3 = new Client();
+    const connResult = await client.call(messages.ConnectionNew({}));
+    console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
+    await c3.connect(connResult.address);
+
+    {
+      console.log(`Calling VersionGet on c3...`);
+      const versionResult = await c3.call(messages.VersionGet({}));
+      console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
+    }
+
+    s.cancel();
+
+    let threw = false;
+    try {
+      console.log(`Calling VersionGet on (closed) c3...`);
+      await c3.call(messages.VersionGet({}));
+    } catch (e) {
+      threw = true;
+    }
+
+    assertEqual(threw, true);
+    console.log(`Did throw after close! (c3)`);
+  }
 }
 
 process.on("unhandledRejection", e => {
