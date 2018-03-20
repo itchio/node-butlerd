@@ -220,11 +220,21 @@ export class Client {
     });
   }
 
-  close() {
+  parentPromise?: Promise<void>;
+
+  setParentPromise(promise: Promise<void>) {
+    this.parentPromise = promise;
+  }
+
+  async close(): Promise<void> {
     if (this.socket) {
       const { socket } = this;
       this.socket = null;
       socket.end();
+    }
+
+    if (this.parentPromise) {
+      await this.parentPromise;
     }
   }
 

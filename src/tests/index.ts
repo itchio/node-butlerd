@@ -5,6 +5,23 @@ import * as rimraf from "rimraf";
 import * as which from "which";
 
 async function main() {
+  await normalTests();
+  await closeTests();
+}
+
+async function closeTests() {
+  let s = new Instance({
+    butlerExecutable: which.sync("butler"),
+  });
+  const client = await s.getClient();
+  await client.close();
+  assertEqual(s.cancelled, false);
+  console.log(`Was not cancelled!`);
+  assertEqual(s.gracefullyExited, true);
+  console.log(`Exited gracefully!`);
+}
+
+async function normalTests() {
   let s = new Instance({
     butlerExecutable: which.sync("butler"),
   });

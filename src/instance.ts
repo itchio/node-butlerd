@@ -15,6 +15,7 @@ export class Instance {
   process: ChildProcess;
   _promise: Promise<void>;
   cancelled = false;
+  gracefullyExited = false;
   client: Client;
   clientListener: ClientListener = (client: Client) => {
     throw new Error("got buse client but no callback was registered to get it");
@@ -58,6 +59,7 @@ export class Instance {
         }
 
         if (code === 0) {
+          this.gracefullyExited = true;
           resolve();
           return;
         }
@@ -85,6 +87,7 @@ export class Instance {
         if (data.type === "result") {
           if (data.value.type === "server-listening") {
             this.client = new Client();
+            this.client.setParentPromise(this._promise);
             this.client
               .connect(data.value.address)
               .then(() => {
@@ -115,6 +118,13 @@ export class Instance {
 
   onClient(cb: ClientListener) {
     this.clientListener = cb;
+  }
+
+  async getClient(): Promise<Client> {
+    return new Promise<Client>((resolve, reject) => {
+      this.clientListener = async client => resolve(client);
+      this._promise.catch(e => reject(e));
+    });
   }
 
   cancel(): Promise<void> {
