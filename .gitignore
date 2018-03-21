@@ -1,3 +1,6 @@
 /node_modules
 /lib
+/lib.development
+/lib.production
 /prefix
+/.cache

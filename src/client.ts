@@ -446,8 +446,8 @@ export class Client {
         return;
       }
 
-      promise.resolve(obj.result);
       delete this.resultPromises[obj.id];
+      promise.resolve(obj.result);
       return;
     }
 
@@ -458,8 +458,8 @@ export class Client {
         return;
       }
 
-      promise.reject(new RequestError(obj.error));
       delete this.resultPromises[obj.id];
+      promise.reject(new RequestError(obj.error));
       return;
     }
 
