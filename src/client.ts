@@ -159,12 +159,15 @@ interface INotificationHandlers {
 
 export type IErrorHandler = (e: Error) => void;
 
+export type IWarningHandler = (msg: string) => void;
+
 export class Client {
   socket: Socket;
   private resultPromises: IResultPromises = {};
   private requestHandlers: IRequestHandlers = {};
   private notificationHandlers: INotificationHandlers = {};
   private errorHandler: IErrorHandler = null;
+  private warningHandler: IWarningHandler = null;
   idSeed = 0;
 
   constructor() {}
@@ -214,10 +217,20 @@ export class Client {
           // ignore errors, we've closed
           return;
         }
-        console.warn(`json-rpc socket closed`);
+        this.warn(`json-rpc socket closed`);
         this.socket = null;
       });
     });
+  }
+
+  private warn(msg: string) {
+    if (this.warningHandler) {
+      try {
+        this.warningHandler(msg);
+        return;
+      } catch (e) {}
+    }
+    console.warn(msg);
   }
 
   parentPromise?: Promise<void>;
@@ -240,6 +253,10 @@ export class Client {
 
   onError(handler: IErrorHandler) {
     this.errorHandler = handler;
+  }
+
+  onWarning(handler: IWarningHandler) {
+    this.warningHandler = handler;
   }
 
   on<T, U>(rc: IRequestCreator<T, U>, handler: (p: T) => Promise<U>);
@@ -375,7 +392,7 @@ export class Client {
       // we got a notification!
       const handler = this.notificationHandlers[obj.method];
       if (!handler) {
-        console.warn(`no handler for notification ${JSON.stringify(obj)}`);
+        this.warn(`no handler for notification ${obj.method}`);
         return;
       }
 
@@ -383,14 +400,14 @@ export class Client {
       try {
         retval = handler(obj);
       } catch (e) {
-        console.warn(`notification handler error: ${e.stack}`);
+        this.warn(`notification handler error: ${e.stack}`);
         if (this.errorHandler) {
           this.errorHandler(e);
         }
       }
 
       Promise.resolve(retval).catch(e => {
-        console.warn(`notification handler async error: ${e.stack}`);
+        this.warn(`notification handler async error: ${e.stack}`);
         if (this.errorHandler) {
           this.errorHandler(e);
         }
@@ -442,7 +459,7 @@ export class Client {
     if (obj.result) {
       const promise = this.resultPromises[obj.id];
       if (!promise) {
-        console.warn(`dropped result: ${JSON.stringify(obj.result)}`);
+        this.warn(`dropped result: ${JSON.stringify(obj.result)}`);
         return;
       }
 
@@ -454,7 +471,7 @@ export class Client {
     if (obj.error) {
       const promise = this.resultPromises[obj.id];
       if (!promise) {
-        console.warn(`dropped error: ${JSON.stringify(obj.result)}`);
+        this.warn(`dropped error: ${JSON.stringify(obj.result)}`);
         return;
       }
 
