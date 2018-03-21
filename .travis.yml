@@ -3,9 +3,9 @@ node_js:
     - "8"
 
 script:
-    - wget https://dl.itch.ovh/butler/linux-amd64/head/butler?t=$(date +%s) -O butler
+    - wget https://dl.itch.ovh/butler/linux-amd64/head/butler?t=$(date +%s) -O butler --progress=dot
     - chmod +x butler
     - export PATH="$PATH:$PWD"
     - butler -V
-    - export DEBUG="*"
+    - export DEBUG="buse:*"
     - npm test
