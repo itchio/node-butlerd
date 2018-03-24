@@ -442,7 +442,8 @@ export class Client {
     }
 
     if (obj.method) {
-      debug("⇐ %o", obj.method);
+      let doLog = (obj.method !== "Handshake")
+      if (doLog) { debug("⇐ %o", obj.method); }
       let receivedAt = Date.now();
       const handler = this.requestHandlers[obj.method];
       if (!handler) {
@@ -469,7 +470,7 @@ export class Client {
 
       Promise.resolve(retval)
         .then(result => {
-          debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt);
+          if (doLog) { debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt); }
           this.sendResult(genericResult, obj.id, result, null);
         })
         .catch(e => {
