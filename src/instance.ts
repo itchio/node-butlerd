@@ -1,6 +1,6 @@
 import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
-import { Client } from "./client";
+import { IEndpoint } from "./client";
 const uuidv4 = require("uuid/v4");
 
 const debug = require("debug")("buse:instance");
@@ -10,12 +10,10 @@ export interface IButlerOpts {
   args?: string[];
 }
 
-export type ClientListener = (c: Client) => Promise<void>;
-
 export class Instance {
   process: ChildProcess;
   _promise: Promise<void>;
-  _addressPromise: Promise<string>;
+  _endpointPromise: Promise<IEndpoint>;
   cancelled = false;
   gracefullyExited = false;
   secret: string;
@@ -31,15 +29,15 @@ export class Instance {
     };
     process.on("exit", onExit);
 
-    let resolveAddress: (address: string) => void;
-    this._addressPromise = new Promise((resolve, reject) => {
+    let resolveEndpoint: (endpoint: IEndpoint) => void;
+    this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
         reject(new Error("timed out waiting for buse to listen"));
       }, 5000);
 
-      resolveAddress = (address: string) => {
+      resolveEndpoint = (endpoint: IEndpoint) => {
         clearTimeout(timeout);
-        resolve(address);
+        resolve(endpoint);
       };
     });
 
@@ -102,7 +100,10 @@ export class Instance {
 
         if (data.type === "result") {
           if (data.value.type === "server-listening") {
-            resolveAddress(data.value.address);
+            resolveEndpoint({
+              secret: this.secret,
+              address: data.value.address,
+            });
             return;
           }
         } else if (debug.enabled && data.type === "log") {
@@ -122,17 +123,8 @@ export class Instance {
     });
   }
 
-  async makeClient(): Promise<Client> {
-    return new Promise<Client>((resolve, reject) => {
-      this._promise.catch(e => reject(e));
-      this._promise.then(() => reject(new Error("buse was terminated")));
-      var client = new Client(this.secret);
-      client.setParentPromise(this._promise);
-      this._addressPromise
-        .then(address => client.connect(address))
-        .then(() => resolve(client))
-        .catch(reject);
-    });
+  async getEndpoint(): Promise<IEndpoint> {
+    return await this._endpointPromise;
   }
 
   cancel(): Promise<void> {

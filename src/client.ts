@@ -17,6 +17,11 @@ export enum CreatorKind {
   Notification = 2,
 }
 
+export interface IEndpoint {
+  address: string;
+  secret: string;
+}
+
 export type ICreator = {
   __kind?: CreatorKind;
 };
@@ -173,11 +178,14 @@ export class Client {
   private notificationHandlers: INotificationHandlers = {};
   private errorHandler: IErrorHandler = null;
   private warningHandler: IWarningHandler = null;
+  private endpoint: IEndpoint;
   idSeed = 0;
 
-  constructor(secret: string) {
+  constructor(endpoint: IEndpoint) {
+    this.endpoint = endpoint;
+
     this.on(Handshake, async ({ message }) => {
-      const signature = sha256(secret + message);
+      const signature = sha256(this.endpoint.secret + message);
       return { signature };
     });
   }
@@ -186,13 +194,13 @@ export class Client {
     return this.idSeed++;
   }
 
-  async connect(address: string) {
+  async connect() {
     if (this.socket) {
       throw new Error("json-rpc client already connected!");
     }
 
     return new Promise((resolve, reject) => {
-      const [host, port] = address.split(":");
+      const [host, port] = this.endpoint.address.split(":");
       const socket = createConnection(+port, host);
 
       socket.on("connect", () => {
@@ -223,10 +231,6 @@ export class Client {
       });
 
       socket.on("close", () => {
-        if (!this.socket) {
-          // ignore errors, we've closed
-          return;
-        }
         this.socket = null;
 
         const e = new Error("json-rpc socket closed");
@@ -249,21 +253,11 @@ export class Client {
     console.warn(msg);
   }
 
-  parentPromise?: Promise<void>;
-
-  setParentPromise(promise: Promise<void>) {
-    this.parentPromise = promise;
-  }
-
-  async close(): Promise<void> {
+  close() {
     if (this.socket) {
       const { socket } = this;
       this.socket = null;
       socket.end();
-    }
-
-    if (this.parentPromise) {
-      await this.parentPromise;
     }
   }
 

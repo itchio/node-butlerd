@@ -23,8 +23,10 @@ async function closeTests() {
   let s = new Instance({
     butlerExecutable: which.sync("butler"),
   });
-  const client = await s.makeClient();
-  await client.close();
+  const client = new Client(await s.getEndpoint());
+  await client.connect();
+  client.close();
+  await s.promise();
   assertEqual(s.cancelled, false);
   console.log(`Was not cancelled!`);
   assertEqual(s.gracefullyExited, true);
@@ -36,7 +38,8 @@ async function normalTests() {
     butlerExecutable: which.sync("butler"),
   });
 
-  const client = await s.makeClient();
+  const client = new Client(await s.getEndpoint());
+  await client.connect();
   await testClient(s, client);
   s.cancel();
   await s.promise();
@@ -49,6 +52,8 @@ function assertEqual(actual: any, expected: any) {
 }
 
 async function testClient(s: Instance, client: Client) {
+  const endpoint = await s.getEndpoint();
+
   const versionResult = await client.call(messages.VersionGet, {});
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
@@ -67,7 +72,8 @@ async function testClient(s: Instance, client: Client) {
   console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
 
   {
-    const c2 = await s.makeClient();
+    const c2 = new Client(endpoint);
+    await c2.connect();
 
     console.log(`Calling VersionGet on c2...`);
     const versionResult = await c2.call(messages.VersionGet, {});
@@ -88,7 +94,8 @@ async function testClient(s: Instance, client: Client) {
   }
 
   {
-    const c3 = await s.makeClient();
+    const c3 = new Client(endpoint);
+    await c3.connect();
 
     console.log(`Calling VersionGet on c3...`);
     const versionResult = await c3.call(messages.VersionGet, {});
