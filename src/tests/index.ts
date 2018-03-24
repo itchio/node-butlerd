@@ -10,6 +10,7 @@ async function main() {
   sha256Tests();
   await normalTests();
   await closeTests();
+  await cancelTests();
 }
 
 function sha256Tests() {
@@ -31,6 +32,29 @@ async function closeTests() {
   console.log(`Was not cancelled!`);
   assertEqual(s.gracefullyExited, true);
   console.log(`Exited gracefully!`);
+}
+
+async function cancelTests() {
+  let s = new Instance({
+    butlerExecutable: which.sync("butler"),
+  });
+  const client = new Client(await s.getEndpoint());
+  await client.connect();
+  s.cancel();
+  let rejected = false;
+  client
+    .call(messages.VersionGet, {})
+    .then(() => {})
+    .catch(() => {
+      rejected = true;
+    });
+  await new Promise((resolve, reject) => {
+    setTimeout(resolve, 1000);
+  });
+  assertEqual(s.cancelled, true);
+  console.log(`Was cancelled!`);
+  assertEqual(rejected, true);
+  console.log(`Was rejected!`);
 }
 
 async function normalTests() {

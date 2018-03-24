@@ -203,14 +203,6 @@ export class Client {
       const [host, port] = this.endpoint.address.split(":");
       const socket = createConnection(+port, host);
 
-      socket.on("connect", () => {
-        this.socket = socket;
-        socket.pipe(split2()).on("data", (line: string) => {
-          this.onReceiveRaw(line);
-        });
-        resolve();
-      });
-
       socket.on("error", e => {
         if (!this.socket) {
           // ignore errors, we've closed
@@ -228,6 +220,7 @@ export class Client {
           rp.reject(e);
         }
         this.resultPromises = {};
+        reject(e);
       });
 
       socket.on("close", () => {
@@ -239,6 +232,14 @@ export class Client {
           rp.reject(e);
         }
         this.resultPromises = {};
+      });
+
+      socket.on("connect", () => {
+        this.socket = socket;
+        socket.pipe(split2()).on("data", (line: string) => {
+          this.onReceiveRaw(line);
+        });
+        resolve();
       });
     });
   }
