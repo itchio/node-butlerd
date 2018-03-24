@@ -1,6 +1,6 @@
 {
   "name": "node-buse",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Node.js library for the butler API",
   "main": "index.js",
   "types": "lib/index.d.ts",
