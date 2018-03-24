@@ -204,34 +204,12 @@ export class Client {
       const socket = createConnection(+port, host);
 
       socket.on("error", e => {
-        if (!this.socket) {
-          // ignore errors, we've closed
-          return;
-        }
-        if (this.errorHandler) {
-          this.errorHandler(e);
-        } else {
-          debug(`socket error: ${e}`);
-        }
-        this.socket = null;
-
-        for (const key of Object.keys(this.resultPromises)) {
-          const rp = this.resultPromises[key];
-          rp.reject(e);
-        }
-        this.resultPromises = {};
+        this.shutdown(e);
         reject(e);
       });
 
       socket.on("close", () => {
-        this.socket = null;
-
-        const e = new Error("json-rpc socket closed");
-        for (const key of Object.keys(this.resultPromises)) {
-          const rp = this.resultPromises[key];
-          rp.reject(e);
-        }
-        this.resultPromises = {};
+        this.shutdown(new Error("connection closed by server"));
       });
 
       socket.on("connect", () => {
@@ -242,6 +220,20 @@ export class Client {
         resolve();
       });
     });
+  }
+
+  private shutdown(e: Error) {
+    if (!this.socket) {
+      // ignore
+      return;
+    }
+    this.socket = null;
+
+    for (const key of Object.keys(this.resultPromises)) {
+      const rp = this.resultPromises[key];
+      rp.reject(e);
+    }
+    this.resultPromises = {};
   }
 
   private warn(msg: string) {
@@ -255,11 +247,8 @@ export class Client {
   }
 
   close() {
-    if (this.socket) {
-      const { socket } = this;
-      this.socket = null;
-      socket.end();
-    }
+    this.socket.end();
+    this.shutdown(new Error("connection closed by client"));
   }
 
   onError(handler: IErrorHandler) {

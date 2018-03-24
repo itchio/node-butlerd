@@ -16,7 +16,8 @@ async function main() {
 function sha256Tests() {
   assertEqual(
     sha256("foobar"),
-    "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+    "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
+    "sha256 hash is computed"
   );
 }
 
@@ -28,10 +29,8 @@ async function closeTests() {
   await client.connect();
   client.close();
   await s.promise();
-  assertEqual(s.cancelled, false);
-  console.log(`Was not cancelled!`);
-  assertEqual(s.gracefullyExited, true);
-  console.log(`Exited gracefully!`);
+  assertEqual(s.cancelled, false, "instance was not cancelled");
+  assertEqual(s.gracefullyExited, true, "instance gracefully exited");
 }
 
 async function cancelTests() {
@@ -51,10 +50,8 @@ async function cancelTests() {
   await new Promise((resolve, reject) => {
     setTimeout(resolve, 1000);
   });
-  assertEqual(s.cancelled, true);
-  console.log(`Was cancelled!`);
-  assertEqual(rejected, true);
-  console.log(`Was rejected!`);
+  assertEqual(s.cancelled, true, "instance was cancelled");
+  assertEqual(rejected, true, "version.get call was rejected");
 }
 
 async function normalTests() {
@@ -69,9 +66,9 @@ async function normalTests() {
   await s.promise();
 }
 
-function assertEqual(actual: any, expected: any) {
+function assertEqual(actual: any, expected: any, msg: string) {
   if (actual != expected) {
-    throw new Error(`expected ${expected}, but got ${actual}`);
+    throw new Error(`${msg}: expected ${expected}, got ${actual}`);
   }
 }
 
@@ -84,7 +81,6 @@ async function testClient(s: Instance, client: Client) {
   const input = 256;
 
   client.on(messages.TestDouble, async ({ number }) => {
-    console.log(`<-- Doubling locally!`);
     return { number: number * 2 };
   });
 
@@ -92,8 +88,7 @@ async function testClient(s: Instance, client: Client) {
     number: input,
   });
 
-  assertEqual(dtres.number, input * 4);
-  console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
+  assertEqual(dtres.number, input * 4, "number was doubled twice");
 
   {
     const c2 = new Client(endpoint);
@@ -113,8 +108,7 @@ async function testClient(s: Instance, client: Client) {
       threw = true;
     }
 
-    assertEqual(threw, true);
-    console.log(`Did throw after close! (c2)`);
+    assertEqual(threw, true, "did throw after close (c2)");
   }
 
   {
@@ -135,8 +129,7 @@ async function testClient(s: Instance, client: Client) {
       threw = true;
     }
 
-    assertEqual(threw, true);
-    console.log(`Did throw after close! (c3)`);
+    assertEqual(threw, true, "did throw after close (c3)");
   }
 }
 
