@@ -247,6 +247,9 @@ export class Client {
   }
 
   close() {
+    if (!this.socket) {
+      return;
+    }
     this.socket.end();
     this.shutdown(new Error("connection closed by client"));
   }
