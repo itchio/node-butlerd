@@ -1,14 +1,13 @@
 {
   "name": "node-buse",
-  "version": "3.11.0",
+  "version": "4.0.0",
   "description": "Node.js library for the butler API",
   "main": "index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "prepublish": "npm run compile",
     "precompile": "tsc",
-    "compile":
-      "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
+    "compile": "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
     "test": "npm run precompile && npm run tape",
     "tape": "node lib/tests/index.js"
   },
@@ -16,8 +15,15 @@
     "type": "git",
     "url": "git+https://github.com/itchio/node-buse.git"
   },
-  "keywords": ["butler"],
-  "files": ["lib", "lib.development", "lib.production", "index.js"],
+  "keywords": [
+    "butler"
+  ],
+  "files": [
+    "lib",
+    "lib.development",
+    "lib.production",
+    "index.js"
+  ],
   "author": "Amos Wenger <amos@itch.io>",
   "license": "MIT",
   "bugs": {
