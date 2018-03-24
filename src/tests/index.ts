@@ -1,19 +1,29 @@
+require("debug").enable("buse:*");
 import { Instance, Client } from "..";
+import { sha256 } from "../sha256";
 import * as messages from "./test_messages";
 import * as fs from "fs";
 import * as rimraf from "rimraf";
 import * as which from "which";
 
 async function main() {
+  sha256Tests();
   await normalTests();
   await closeTests();
+}
+
+function sha256Tests() {
+  assertEqual(
+    sha256("foobar"),
+    "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+  );
 }
 
 async function closeTests() {
   let s = new Instance({
     butlerExecutable: which.sync("butler"),
   });
-  const client = await s.getClient();
+  const client = await s.makeClient();
   await client.close();
   assertEqual(s.cancelled, false);
   console.log(`Was not cancelled!`);
@@ -26,12 +36,9 @@ async function normalTests() {
     butlerExecutable: which.sync("butler"),
   });
 
-  s.onClient(async client => {
-    await testClient(s, client);
-
-    s.cancel();
-  });
-
+  const client = await s.makeClient();
+  await testClient(s, client);
+  s.cancel();
   await s.promise();
 }
 
@@ -60,16 +67,11 @@ async function testClient(s: Instance, client: Client) {
   console.log(`<-- ${input} doubled twice is ${input * 4}, all is well`);
 
   {
-    const c2 = new Client();
-    const connResult = await client.call(messages.ConnectionNew, {});
-    console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
-    await c2.connect(connResult.address);
+    const c2 = await s.makeClient();
 
-    {
-      console.log(`Calling VersionGet on c2...`);
-      const versionResult = await c2.call(messages.VersionGet, {});
-      console.log(`<-- (c2) Version.Get: ${JSON.stringify(versionResult)}`);
-    }
+    console.log(`Calling VersionGet on c2...`);
+    const versionResult = await c2.call(messages.VersionGet, {});
+    console.log(`<-- (c2) Version.Get: ${JSON.stringify(versionResult)}`);
 
     c2.close();
 
@@ -86,16 +88,11 @@ async function testClient(s: Instance, client: Client) {
   }
 
   {
-    const c3 = new Client();
-    const connResult = await client.call(messages.ConnectionNew, {});
-    console.log(`<-- Connection.New: ${JSON.stringify(connResult)}`);
-    await c3.connect(connResult.address);
+    const c3 = await s.makeClient();
 
-    {
-      console.log(`Calling VersionGet on c3...`);
-      const versionResult = await c3.call(messages.VersionGet, {});
-      console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
-    }
+    console.log(`Calling VersionGet on c3...`);
+    const versionResult = await c3.call(messages.VersionGet, {});
+    console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
 
     await s.cancel();
 

@@ -1,6 +1,7 @@
 import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
 import { Client } from "./client";
+const uuidv4 = require("uuid/v4");
 
 const debug = require("debug")("buse:instance");
 
@@ -14,18 +15,33 @@ export type ClientListener = (c: Client) => Promise<void>;
 export class Instance {
   process: ChildProcess;
   _promise: Promise<void>;
+  _addressPromise: Promise<string>;
   cancelled = false;
   gracefullyExited = false;
-  client: Client;
-  clientListener: ClientListener = (client: Client) => {
-    throw new Error("got buse client but no callback was registered to get it");
-  };
+  secret: string;
 
   constructor(butlerOpts: IButlerOpts) {
+    this.secret = "";
+    for (let i = 0; i < 16; i++) {
+      this.secret += uuidv4();
+    }
+
     let onExit = () => {
       this.cancel();
     };
     process.on("exit", onExit);
+
+    let resolveAddress: (address: string) => void;
+    this._addressPromise = new Promise((resolve, reject) => {
+      let timeout = setTimeout(() => {
+        reject(new Error("timed out waiting for buse to listen"));
+      }, 5000);
+
+      resolveAddress = (address: string) => {
+        clearTimeout(timeout);
+        resolve(address);
+      };
+    });
 
     this._promise = new Promise((resolve, reject) => {
       let butlerArgs = ["--json", "service"];
@@ -41,7 +57,7 @@ export class Instance {
       let { butlerExecutable = "butler" } = butlerOpts;
 
       this.process = spawn(butlerExecutable, butlerArgs, {
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       });
 
       let errLines = [];
@@ -65,8 +81,8 @@ export class Instance {
         }
         reject(
           new Error(
-            `butler exit code ${code}, error log:\n${errLines.join("\n")}`,
-          ),
+            `butler exit code ${code}, error log:\n${errLines.join("\n")}`
+          )
         );
       });
 
@@ -86,22 +102,7 @@ export class Instance {
 
         if (data.type === "result") {
           if (data.value.type === "server-listening") {
-            this.client = new Client();
-            this.client.setParentPromise(this._promise);
-            this.client
-              .connect(data.value.address)
-              .then(() => {
-                // TODO: figure out if we need to handle this.cancelled here
-                this.client.onError(e => {
-                  reject(
-                    new Error(
-                      `${e}, butler error log:\n${errLines.join("\n")}`,
-                    ),
-                  );
-                });
-                return this.clientListener(this.client);
-              })
-              .catch(e => reject(e));
+            resolveAddress(data.value.address);
             return;
           }
         } else if (debug.enabled && data.type === "log") {
@@ -113,28 +114,30 @@ export class Instance {
         debug(`[err] ${line}`);
         errLines.push(line);
       });
+
+      this.process.stdin.write(
+        JSON.stringify({ secret: this.secret }) + "\n",
+        "utf8"
+      );
     });
   }
 
-  onClient(cb: ClientListener) {
-    this.clientListener = cb;
-  }
-
-  async getClient(): Promise<Client> {
+  async makeClient(): Promise<Client> {
     return new Promise<Client>((resolve, reject) => {
-      this.clientListener = async client => resolve(client);
       this._promise.catch(e => reject(e));
+      this._promise.then(() => reject(new Error("buse was terminated")));
+      var client = new Client(this.secret);
+      client.setParentPromise(this._promise);
+      this._addressPromise
+        .then(address => client.connect(address))
+        .then(() => resolve(client))
+        .catch(reject);
     });
   }
 
   cancel(): Promise<void> {
     if (!this.cancelled) {
       this.cancelled = true;
-
-      if (this.client) {
-        this.client.close();
-        this.client = null;
-      }
 
       if (this.process) {
         this.process.kill("SIGINT");

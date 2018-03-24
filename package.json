@@ -6,23 +6,18 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "prepublish": "npm run compile",
-    "compile": "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
-    "test": "npm run compile && npm run tape",
+    "precompile": "tsc",
+    "compile":
+      "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
+    "test": "npm run precompile && npm run tape",
     "tape": "node lib/tests/index.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/itchio/node-buse.git"
   },
-  "keywords": [
-    "butler"
-  ],
-  "files": [
-    "lib",
-    "lib.development",
-    "lib.production",
-    "index.js"
-  ],
+  "keywords": ["butler"],
+  "files": ["lib", "lib.development", "lib.production", "index.js"],
   "author": "Amos Wenger <amos@itch.io>",
   "license": "MIT",
   "bugs": {
@@ -46,6 +41,7 @@
   },
   "dependencies": {
     "debug": "^3.1.0",
-    "split2": "^2.2.0"
+    "split2": "^2.2.0",
+    "uuid": "^3.2.1"
   }
 }

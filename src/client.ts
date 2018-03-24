@@ -1,4 +1,5 @@
 import { Socket, createConnection } from "net";
+import { sha256 } from "./sha256";
 import * as split2 from "split2";
 
 var debug = require("debug")("buse:client");
@@ -21,7 +22,7 @@ export type ICreator = {
 };
 
 export type IRequestCreator<T, U> = ((
-  params: T,
+  params: T
 ) => (client: Client) => IRequest<T, U>) &
   ICreator;
 export type INotificationCreator<T> = ((params: T) => INotification<T>) &
@@ -30,7 +31,7 @@ export type INotificationCreator<T> = ((params: T) => INotification<T>) &
 export type IResultCreator<T> = (
   id: number | null,
   result?: T,
-  error?: RpcError,
+  error?: RpcError
 ) => IResult<T>;
 
 export enum RequestType {
@@ -50,7 +51,7 @@ export const createRequest = <T, U>(method: string): IRequestCreator<T, U> => {
 };
 
 export const createNotification = <T>(
-  method: string,
+  method: string
 ): INotificationCreator<T> => {
   let nc = ((params: T) => ({
     jsonrpc: "2.0",
@@ -78,7 +79,7 @@ export function asNotificationCreator(x: ICreator): INotificationCreator<any> {
 export const createResult = <T>(): IResultCreator<T> => (
   id: number | null,
   result?: T,
-  error?: RpcError,
+  error?: RpcError
 ) => {
   if (error) {
     return {
@@ -96,6 +97,10 @@ export const createResult = <T>(): IResultCreator<T> => (
 };
 
 export const genericResult = createResult<void>();
+
+const Handshake = createRequest<{ message: string }, { signature: string }>(
+  "Handshake"
+);
 
 export interface INotification<T> {
   method: string;
@@ -170,7 +175,12 @@ export class Client {
   private warningHandler: IWarningHandler = null;
   idSeed = 0;
 
-  constructor() {}
+  constructor(secret: string) {
+    this.on(Handshake, async ({ message }) => {
+      const signature = sha256(secret + message);
+      return { signature };
+    });
+  }
 
   generateID(): number {
     return this.idSeed++;
@@ -182,12 +192,10 @@ export class Client {
     }
 
     return new Promise((resolve, reject) => {
-      debug(`connecting to butler service on ${address}`);
       const [host, port] = address.split(":");
       const socket = createConnection(+port, host);
 
       socket.on("connect", () => {
-        debug(`connected to butler service!`);
         this.socket = socket;
         socket.pipe(split2()).on("data", (line: string) => {
           this.onReceiveRaw(line);
@@ -202,6 +210,8 @@ export class Client {
         }
         if (this.errorHandler) {
           this.errorHandler(e);
+        } else {
+          debug(`socket error: ${e}`);
         }
         this.socket = null;
 
@@ -217,8 +227,14 @@ export class Client {
           // ignore errors, we've closed
           return;
         }
-        this.warn(`json-rpc socket closed`);
         this.socket = null;
+
+        const e = new Error("json-rpc socket closed");
+        for (const key of Object.keys(this.resultPromises)) {
+          const rp = this.resultPromises[key];
+          rp.reject(e);
+        }
+        this.resultPromises = {};
       });
     });
   }
@@ -266,12 +282,12 @@ export class Client {
     if (c.__kind === CreatorKind.Request) {
       this.onRequest(
         c as IRequestCreator<any, any>,
-        async payload => await handler(payload.params),
+        async payload => await handler(payload.params)
       );
     } else if (c.__kind === CreatorKind.Notification) {
       this.onNotification(
         c as INotificationCreator<any>,
-        async payload => await handler(payload.params),
+        async payload => await handler(payload.params)
       );
     } else {
       throw new Error(`Unknown creator passed (not request nor notification)`);
@@ -290,14 +306,14 @@ export class Client {
 
   onNotification<T>(
     nc: INotificationCreator<T>,
-    handler: INotificationHandler<T>,
+    handler: INotificationHandler<T>
   ) {
     const example = nc(null);
     const { method } = example;
 
     if (this.notificationHandlers[method]) {
       throw new Error(
-        `cannot register a second notification handler for ${method}`,
+        `cannot register a second notification handler for ${method}`
       );
     }
     this.notificationHandlers[method] = handler;
@@ -313,13 +329,27 @@ export class Client {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
     }
 
+    let method = obj.method;
+    debug("→ %o", method);
+
     return new Promise<U>((resolve, reject) => {
+      let sentAt = Date.now();
       try {
         this.sendRaw(obj);
       } catch (e) {
+        debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
         return reject(e);
       }
-      this.resultPromises[obj.id] = { resolve, reject };
+      this.resultPromises[obj.id] = {
+        resolve: x => {
+          debug("← %o (%oms)", method, Date.now() - sentAt);
+          resolve(x);
+        },
+        reject: e => {
+          debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
+          reject(e);
+        },
+      };
     });
   }
 
@@ -327,14 +357,22 @@ export class Client {
     rc: IResultCreator<T>,
     id: number,
     result?: T,
-    error?: RpcError,
+    error?: RpcError
   ): void {
     const obj = rc(id, result, error);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in result ${JSON.stringify(obj)}`);
     }
 
-    this.sendRaw(obj);
+    if (!this.socket) {
+      // just ignore
+      return;
+    }
+    try {
+      this.sendRaw(obj);
+    } catch (e) {
+      this.warn(`could not send result for ${obj.id}: ${e.stack}`);
+    }
   }
 
   private sendRaw(obj: any) {
@@ -345,13 +383,13 @@ export class Client {
     const type = typeof obj;
     if (type !== "object") {
       throw new Error(
-        `can only send object via json-rpc, refusing to send ${type}`,
+        `can only send object via json-rpc, refusing to send ${type}`
       );
     }
 
     if (obj.jsonrpc != "2.0") {
       throw new Error(
-        `expected message.jsonrpc == '2.0', got ${JSON.stringify(obj.jsonrpc)}`,
+        `expected message.jsonrpc == '2.0', got ${JSON.stringify(obj.jsonrpc)}`
       );
     }
 
@@ -417,6 +455,8 @@ export class Client {
     }
 
     if (obj.method) {
+      debug("⇐ %o", obj.method);
+      let receivedAt = Date.now();
       const handler = this.requestHandlers[obj.method];
       if (!handler) {
         this.sendResult(genericResult, obj.id, null, <RpcError>{
@@ -442,6 +482,7 @@ export class Client {
 
       Promise.resolve(retval)
         .then(result => {
+          debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt);
           this.sendResult(genericResult, obj.id, result, null);
         })
         .catch(e => {
