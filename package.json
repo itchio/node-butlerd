@@ -1,7 +1,7 @@
 {
-  "name": "node-buse",
+  "name": "node-butlerd",
   "version": "5.4.0",
-  "description": "Node.js library for the butler API",
+  "description": "Node.js library for butlerd, the butler daemon",
   "main": "index.js",
   "types": "lib/index.d.ts",
   "scripts": {
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/itchio/node-buse.git"
+    "url": "git+https://github.com/itchio/node-butlerd.git"
   },
   "keywords": [
     "butler"
@@ -27,9 +27,9 @@
   "author": "Amos Wenger <amos@itch.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/itchio/node-buse/issues"
+    "url": "https://github.com/itchio/node-butlerd/issues"
   },
-  "homepage": "https://github.com/itchio/node-buse#readme",
+  "homepage": "https://github.com/itchio/node-butlerd#readme",
   "devDependencies": {
     "@types/node": "^8.0.47",
     "@types/rimraf": "^2.0.2",

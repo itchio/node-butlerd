@@ -1,4 +1,4 @@
-require("debug").enable("buse:*");
+require("debug").enable("butlerd:*");
 import { Instance, Client } from "..";
 import { sha256 } from "../sha256";
 import * as messages from "./test_messages";

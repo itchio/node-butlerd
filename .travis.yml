@@ -7,5 +7,5 @@ script:
     - chmod +x butler
     - export PATH="$PATH:$PWD"
     - butler -V
-    - export DEBUG="buse:*"
+    - export DEBUG="butlerd:*"
     - npm test

@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from "child_process";
 import { IEndpoint } from "./client";
 const uuidv4 = require("uuid/v4");
 
-const debug = require("debug")("buse:instance");
+const debug = require("debug")("butlerd:instance");
 
 export interface IButlerOpts {
   butlerExecutable: string;
@@ -19,11 +19,6 @@ export class Instance {
   secret: string;
 
   constructor(butlerOpts: IButlerOpts) {
-    this.secret = "";
-    for (let i = 0; i < 16; i++) {
-      this.secret += uuidv4();
-    }
-
     let onExit = () => {
       this.cancel();
     };
@@ -32,7 +27,7 @@ export class Instance {
     let resolveEndpoint: (endpoint: IEndpoint) => void;
     this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
-        reject(new Error("timed out waiting for buse to listen"));
+        reject(new Error("timed out waiting for butlerd to listen"));
       }, 5000);
 
       resolveEndpoint = (endpoint: IEndpoint) => {
@@ -42,7 +37,7 @@ export class Instance {
     });
 
     this._promise = new Promise((resolve, reject) => {
-      let butlerArgs = ["--json", "service"];
+      let butlerArgs = ["--json", "daemon"];
       if (debug.enabled) {
         butlerArgs = [...butlerArgs, "--verbose"];
       }
@@ -79,8 +74,8 @@ export class Instance {
         }
         reject(
           new Error(
-            `butler exit code ${code}, error log:\n${errLines.join("\n")}`
-          )
+            `butler exit code ${code}, error log:\n${errLines.join("\n")}`,
+          ),
         );
       });
 
@@ -98,16 +93,46 @@ export class Instance {
           return;
         }
 
-        if (data.type === "result") {
-          if (data.value.type === "server-listening") {
+        switch (data.type) {
+          case "butlerd/secret-request": {
+            const maxRounds = 1024;
+            let round = 0;
+            if (!(data.minLength > 0)) {
+              reject(
+                "internal error: butlerd asked for invalid minimum secret length",
+              );
+            }
+
+            this.secret = "";
+            while (this.secret.length < data.minLength) {
+              this.secret += uuidv4();
+              round++;
+              if (round > maxRounds) {
+                reject(
+                  "internal error: could not generate secret big enough for butlerd",
+                );
+                return;
+              }
+            }
+
+            const obj = {
+              type: "butlerd/secret-result",
+              secret: this.secret,
+            };
+            this.process.stdin.write(JSON.stringify(obj) + "\n", "utf8");
+            break;
+          }
+          case "butlerd/listen-notification": {
             resolveEndpoint({
               secret: this.secret,
-              address: data.value.address,
+              address: data.address,
             });
-            return;
+            break;
           }
-        } else if (debug.enabled && data.type === "log") {
-          debug(`[${data.level}] ${data.message}`);
+          case "log": {
+            debug(`[${data.level}] ${data.message}`);
+            break;
+          }
         }
       });
 
@@ -115,11 +140,6 @@ export class Instance {
         debug(`[err] ${line}`);
         errLines.push(line);
       });
-
-      this.process.stdin.write(
-        JSON.stringify({ secret: this.secret }) + "\n",
-        "utf8"
-      );
     });
   }
 

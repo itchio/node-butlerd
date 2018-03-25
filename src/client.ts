@@ -2,7 +2,7 @@ import { Socket, createConnection } from "net";
 import { sha256 } from "./sha256";
 import * as split2 from "split2";
 
-var debug = require("debug")("buse:client");
+var debug = require("debug")("butlerd:client");
 
 export enum StandardErrorCode {
   ParseError = -32700,
@@ -27,7 +27,7 @@ export type ICreator = {
 };
 
 export type IRequestCreator<T, U> = ((
-  params: T
+  params: T,
 ) => (client: Client) => IRequest<T, U>) &
   ICreator;
 export type INotificationCreator<T> = ((params: T) => INotification<T>) &
@@ -36,7 +36,7 @@ export type INotificationCreator<T> = ((params: T) => INotification<T>) &
 export type IResultCreator<T> = (
   id: number | null,
   result?: T,
-  error?: RpcError
+  error?: RpcError,
 ) => IResult<T>;
 
 export enum RequestType {
@@ -56,7 +56,7 @@ export const createRequest = <T, U>(method: string): IRequestCreator<T, U> => {
 };
 
 export const createNotification = <T>(
-  method: string
+  method: string,
 ): INotificationCreator<T> => {
   let nc = ((params: T) => ({
     jsonrpc: "2.0",
@@ -84,7 +84,7 @@ export function asNotificationCreator(x: ICreator): INotificationCreator<any> {
 export const createResult = <T>(): IResultCreator<T> => (
   id: number | null,
   result?: T,
-  error?: RpcError
+  error?: RpcError,
 ) => {
   if (error) {
     return {
@@ -104,7 +104,7 @@ export const createResult = <T>(): IResultCreator<T> => (
 export const genericResult = createResult<void>();
 
 const Handshake = createRequest<{ message: string }, { signature: string }>(
-  "Handshake"
+  "Handshake",
 );
 
 export interface INotification<T> {
@@ -269,12 +269,12 @@ export class Client {
     if (c.__kind === CreatorKind.Request) {
       this.onRequest(
         c as IRequestCreator<any, any>,
-        async payload => await handler(payload.params)
+        async payload => await handler(payload.params),
       );
     } else if (c.__kind === CreatorKind.Notification) {
       this.onNotification(
         c as INotificationCreator<any>,
-        async payload => await handler(payload.params)
+        async payload => await handler(payload.params),
       );
     } else {
       throw new Error(`Unknown creator passed (not request nor notification)`);
@@ -293,14 +293,14 @@ export class Client {
 
   onNotification<T>(
     nc: INotificationCreator<T>,
-    handler: INotificationHandler<T>
+    handler: INotificationHandler<T>,
   ) {
     const example = nc(null);
     const { method } = example;
 
     if (this.notificationHandlers[method]) {
       throw new Error(
-        `cannot register a second notification handler for ${method}`
+        `cannot register a second notification handler for ${method}`,
       );
     }
     this.notificationHandlers[method] = handler;
@@ -344,7 +344,7 @@ export class Client {
     rc: IResultCreator<T>,
     id: number,
     result?: T,
-    error?: RpcError
+    error?: RpcError,
   ): void {
     const obj = rc(id, result, error);
     if (typeof obj.id !== "number") {
@@ -370,13 +370,13 @@ export class Client {
     const type = typeof obj;
     if (type !== "object") {
       throw new Error(
-        `can only send object via json-rpc, refusing to send ${type}`
+        `can only send object via json-rpc, refusing to send ${type}`,
       );
     }
 
     if (obj.jsonrpc != "2.0") {
       throw new Error(
-        `expected message.jsonrpc == '2.0', got ${JSON.stringify(obj.jsonrpc)}`
+        `expected message.jsonrpc == '2.0', got ${JSON.stringify(obj.jsonrpc)}`,
       );
     }
 
@@ -442,8 +442,10 @@ export class Client {
     }
 
     if (obj.method) {
-      let doLog = (obj.method !== "Handshake")
-      if (doLog) { debug("⇐ %o", obj.method); }
+      let doLog = obj.method !== "Handshake";
+      if (doLog) {
+        debug("⇐ %o", obj.method);
+      }
       let receivedAt = Date.now();
       const handler = this.requestHandlers[obj.method];
       if (!handler) {
@@ -470,7 +472,9 @@ export class Client {
 
       Promise.resolve(retval)
         .then(result => {
-          if (doLog) { debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt); }
+          if (doLog) {
+            debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt);
+          }
           this.sendResult(genericResult, obj.id, result, null);
         })
         .catch(e => {
