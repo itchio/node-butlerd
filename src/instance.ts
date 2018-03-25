@@ -1,7 +1,7 @@
 import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
 import { IEndpoint } from "./client";
-const uuidv4 = require("uuid/v4");
+const cryptoRandomString = require("crypto-random-string");
 
 const debug = require("debug")("butlerd:instance");
 
@@ -95,26 +95,13 @@ export class Instance {
 
         switch (data.type) {
           case "butlerd/secret-request": {
-            const maxRounds = 1024;
-            let round = 0;
             if (!(data.minLength > 0)) {
               reject(
                 "internal error: butlerd asked for invalid minimum secret length",
               );
             }
 
-            this.secret = "";
-            while (this.secret.length < data.minLength) {
-              this.secret += uuidv4();
-              round++;
-              if (round > maxRounds) {
-                reject(
-                  "internal error: could not generate secret big enough for butlerd",
-                );
-                return;
-              }
-            }
-
+            this.secret = cryptoRandomString(data.minLength);
             const obj = {
               type: "butlerd/secret-result",
               secret: this.secret,

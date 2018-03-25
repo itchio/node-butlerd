@@ -46,8 +46,8 @@
     "which": "^1.3.0"
   },
   "dependencies": {
+    "crypto-random-string": "^1.0.0",
     "debug": "^3.1.0",
-    "split2": "^2.2.0",
-    "uuid": "^3.2.1"
+    "split2": "^2.2.0"
   }
 }
