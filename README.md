@@ -1,10 +1,11 @@
-# node-butlerd
+# butlerd for node.js
 
 ![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)
 [![Build Status](https://travis-ci.org/itchio/node-butlerd.svg?branch=master)](https://travis-ci.org/itchio/node-butlerd)
 [![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+[![Available on npm](https://img.shields.io/npm/v/butlerd.svg)](https://www.npmjs.com/package/butlerd)
 
-node-butlerd handles:
+The butlerd package handles:
 
   * launching [butler](https://itch.io/docs/butler) in daemon mode
   * connecting to it
