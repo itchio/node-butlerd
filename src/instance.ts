@@ -55,7 +55,7 @@ export class Instance {
 
       let errLines = [];
 
-      this.process.on("close", (code: number, signal: string) => {
+      const onClose = (code: number, signal: string) => {
         process.removeListener("exit", onExit);
         debug("butler closed, signal %s, code %d", signal, code);
         if (signal) {
@@ -77,6 +77,14 @@ export class Instance {
             `butler exit code ${code}, error log:\n${errLines.join("\n")}`,
           ),
         );
+      };
+
+      this.process.on("close", (code: number, signal: string) => {
+        try {
+          onClose(code, signal);
+        } catch (e) {
+          reject(e);
+        }
       });
 
       this.process.on("error", err => {
@@ -84,7 +92,7 @@ export class Instance {
         reject(err);
       });
 
-      this.process.stdout.pipe(split2()).on("data", (line: string) => {
+      const processStdoutLine = (line: string) => {
         let data: any;
         try {
           data = JSON.parse(line);
@@ -121,11 +129,27 @@ export class Instance {
             break;
           }
         }
+      };
+
+      this.process.stdout.pipe(split2()).on("data", (line: string) => {
+        try {
+          processStdoutLine(line);
+        } catch (e) {
+          reject(e);
+        }
       });
 
-      this.process.stderr.pipe(split2()).on("data", (line: string) => {
+      const processStderrLine = (line: string) => {
         debug(`[err] ${line}`);
         errLines.push(line);
+      };
+
+      this.process.stderr.pipe(split2()).on("data", (line: string) => {
+        try {
+          processStderrLine(line);
+        } catch (e) {
+          reject(e);
+        }
       });
     });
   }
