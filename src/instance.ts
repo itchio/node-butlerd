@@ -50,7 +50,7 @@ export class Instance {
       let { butlerExecutable = "butler" } = butlerOpts;
 
       this.process = spawn(butlerExecutable, butlerArgs, {
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: ["ignore", "pipe", "pipe"],
       });
 
       let errLines = [];
@@ -102,25 +102,11 @@ export class Instance {
         }
 
         switch (data.type) {
-          case "butlerd/secret-request": {
-            if (!(data.minLength > 0)) {
-              reject(
-                "internal error: butlerd asked for invalid minimum secret length",
-              );
-            }
-
-            this.secret = cryptoRandomString(data.minLength);
-            const obj = {
-              type: "butlerd/secret-result",
-              secret: this.secret,
-            };
-            this.process.stdin.write(JSON.stringify(obj) + "\n", "utf8");
-            break;
-          }
           case "butlerd/listen-notification": {
             resolveEndpoint({
-              secret: this.secret,
               address: data.address,
+              secret: data.secret,
+              cert: data.cert,
             });
             break;
           }

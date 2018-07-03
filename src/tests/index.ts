@@ -1,31 +1,32 @@
 require("debug").enable("butlerd:*");
 import { Instance, Client } from "..";
-import { sha256 } from "../sha256";
 import * as messages from "./test_messages";
 import * as fs from "fs";
 import * as rimraf from "rimraf";
 import * as which from "which";
+import { newNodeTransport } from "../transport-node";
+import { IButlerOpts } from "../instance";
 
 async function main() {
-  sha256Tests();
   await normalTests();
   await closeTests();
   await cancelTests();
 }
 
-function sha256Tests() {
-  assertEqual(
-    sha256("foobar"),
-    "c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
-    "sha256 hash is computed"
-  );
+function newTransport() {
+  return newNodeTransport();
+}
+
+function butlerOpts(): IButlerOpts {
+  return {
+    butlerExecutable: which.sync("butler"),
+    args: ["--dbpath", "./tmp/butler.db"],
+  };
 }
 
 async function closeTests() {
-  let s = new Instance({
-    butlerExecutable: which.sync("butler"),
-  });
-  const client = new Client(await s.getEndpoint());
+  let s = new Instance(butlerOpts());
+  const client = new Client(await s.getEndpoint(), newTransport());
   await client.connect();
   client.close();
   await s.promise();
@@ -34,10 +35,8 @@ async function closeTests() {
 }
 
 async function cancelTests() {
-  let s = new Instance({
-    butlerExecutable: which.sync("butler"),
-  });
-  const client = new Client(await s.getEndpoint());
+  let s = new Instance(butlerOpts());
+  const client = new Client(await s.getEndpoint(), newTransport());
   await client.connect();
   s.cancel();
   let rejected = false;
@@ -55,11 +54,9 @@ async function cancelTests() {
 }
 
 async function normalTests() {
-  let s = new Instance({
-    butlerExecutable: which.sync("butler"),
-  });
+  let s = new Instance(butlerOpts());
 
-  const client = new Client(await s.getEndpoint());
+  const client = new Client(await s.getEndpoint(), newTransport());
   await client.connect();
   await testClient(s, client);
   s.cancel();
@@ -91,7 +88,7 @@ async function testClient(s: Instance, client: Client) {
   assertEqual(dtres.number, input * 4, "number was doubled twice");
 
   {
-    const c2 = new Client(endpoint);
+    const c2 = new Client(endpoint, newTransport());
     await c2.connect();
 
     console.log(`Calling VersionGet on c2...`);
@@ -112,7 +109,7 @@ async function testClient(s: Instance, client: Client) {
   }
 
   {
-    const c3 = new Client(endpoint);
+    const c3 = new Client(endpoint, newTransport());
     await c3.connect();
 
     console.log(`Calling VersionGet on c3...`);

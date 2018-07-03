@@ -1,6 +1,4 @@
-import { Socket, createConnection } from "net";
-import { sha256 } from "./sha256";
-import * as split2 from "split2";
+import { Transport } from "./transport";
 
 var debug = require("debug")("butlerd:client");
 
@@ -20,6 +18,7 @@ export enum CreatorKind {
 export interface IEndpoint {
   address: string;
   secret: string;
+  cert: string;
 }
 
 export type ICreator = {
@@ -172,22 +171,21 @@ export type IErrorHandler = (e: Error) => void;
 export type IWarningHandler = (msg: string) => void;
 
 export class Client {
-  socket: Socket;
   private resultPromises: IResultPromises = {};
   private requestHandlers: IRequestHandlers = {};
   private notificationHandlers: INotificationHandlers = {};
   private errorHandler: IErrorHandler = null;
   private warningHandler: IWarningHandler = null;
   private endpoint: IEndpoint;
+  private clientId: string;
+  private transport: Transport;
   idSeed = 0;
 
-  constructor(endpoint: IEndpoint) {
+  constructor(endpoint: IEndpoint, transport: Transport) {
     this.endpoint = endpoint;
+    this.clientId = `client-${(Math.random() * 1024 * 1024).toFixed(0)}`;
 
-    this.on(Handshake, async ({ message }) => {
-      const signature = sha256(this.endpoint.secret + message);
-      return { signature };
-    });
+    this.transport = transport;
   }
 
   generateID(): number {
@@ -195,39 +193,25 @@ export class Client {
   }
 
   async connect() {
-    if (this.socket) {
-      throw new Error("json-rpc client already connected!");
-    }
-
-    return new Promise((resolve, reject) => {
-      const [host, port] = this.endpoint.address.split(":");
-      const socket = createConnection(+port, host);
-
-      socket.on("error", e => {
-        this.shutdown(e);
-        reject(e);
-      });
-
-      socket.on("close", () => {
-        this.shutdown(new Error("connection closed by server"));
-      });
-
-      socket.on("connect", () => {
-        this.socket = socket;
-        socket.pipe(split2()).on("data", (line: string) => {
-          this.onReceiveRaw(line);
-        });
-        resolve();
-      });
+    this.transport.setOnMessage((msg: any) => {
+      console.log(`Client received message! `, msg);
     });
+
+    this.transport.setOnError((e: Error) => {
+      this.shutdown(e);
+    });
+
+    this.transport.setOnError = (msg: any) => {
+      console.log(`Client received message! `, msg);
+    };
+
+    console.log(`Calling transport.connect...`);
+    await this.transport.connect(this.endpoint, this.clientId);
+    console.log(`transport.connect returned`);
   }
 
   private shutdown(e: Error) {
-    if (!this.socket) {
-      // ignore
-      return;
-    }
-    this.socket = null;
+    this.transport.close();
 
     for (const key of Object.keys(this.resultPromises)) {
       const rp = this.resultPromises[key];
@@ -247,10 +231,7 @@ export class Client {
   }
 
   close() {
-    if (!this.socket) {
-      return;
-    }
-    this.socket.end();
+    this.transport.close();
     this.shutdown(new Error("connection closed by client"));
   }
 
@@ -320,13 +301,6 @@ export class Client {
     debug("→ %o", method);
 
     return new Promise<U>((resolve, reject) => {
-      let sentAt = Date.now();
-      try {
-        this.sendRaw(obj);
-      } catch (e) {
-        debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
-        return reject(e);
-      }
       this.resultPromises[obj.id] = {
         resolve: x => {
           debug("← %o (%oms)", method, Date.now() - sentAt);
@@ -337,6 +311,12 @@ export class Client {
           reject(e);
         },
       };
+
+      let sentAt = Date.now();
+      this.sendRaw(obj).catch(e => {
+        debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
+        reject(e);
+      });
     });
   }
 
@@ -345,25 +325,24 @@ export class Client {
     id: number,
     result?: T,
     error?: RpcError,
-  ): void {
+  ): Promise<void> {
     const obj = rc(id, result, error);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in result ${JSON.stringify(obj)}`);
     }
 
-    if (!this.socket) {
+    if (this.transport.isClosed()) {
       // just ignore
       return;
     }
-    try {
-      this.sendRaw(obj);
-    } catch (e) {
+
+    this.sendRaw(obj).catch(e => {
       this.warn(`could not send result for ${obj.id}: ${e.stack}`);
-    }
+    });
   }
 
-  private sendRaw(obj: any) {
-    if (!this.socket) {
+  private async sendRaw(obj: any) {
+    if (this.transport.isClosed()) {
       throw new Error(`trying to send on disconnected client`);
     }
 
@@ -381,7 +360,7 @@ export class Client {
     }
 
     const payload = JSON.stringify(obj);
-    this.socket.write(payload + "\n");
+    await this.transport.post(obj);
   }
 
   private onReceiveRaw(line: string) {
