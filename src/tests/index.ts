@@ -9,7 +9,6 @@ import { IButlerOpts } from "../instance";
 
 async function main() {
   await normalTests();
-  await closeTests();
   await cancelTests();
 }
 
@@ -24,17 +23,8 @@ function butlerOpts(): IButlerOpts {
   };
 }
 
-async function closeTests() {
-  let s = new Instance(butlerOpts());
-  const client = new Client(await s.getEndpoint(), newTransport());
-  await client.connect();
-  client.close();
-  await s.promise();
-  assertEqual(s.cancelled, false, "instance was not cancelled");
-  assertEqual(s.gracefullyExited, true, "instance gracefully exited");
-}
-
 async function cancelTests() {
+  console.log(`Running cancel tests...`);
   let s = new Instance(butlerOpts());
   const client = new Client(await s.getEndpoint(), newTransport());
   await client.connect();
@@ -54,6 +44,7 @@ async function cancelTests() {
 }
 
 async function normalTests() {
+  console.log(`Running normal tests...`);
   let s = new Instance(butlerOpts());
 
   const client = new Client(await s.getEndpoint(), newTransport());
