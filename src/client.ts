@@ -195,15 +195,14 @@ export class Client {
   async connect() {
     this.transport.setOnMessage((msg: any) => {
       console.log(`Client received message! `, msg);
+      this.handleMessage(msg).catch(e => {
+        this.warn(e.stack);
+      });
     });
 
     this.transport.setOnError((e: Error) => {
       this.shutdown(e);
     });
-
-    this.transport.setOnError = (msg: any) => {
-      console.log(`Client received message! `, msg);
-    };
 
     console.log(`Calling transport.connect...`);
     await this.transport.connect(this.endpoint, this.clientId);
@@ -300,109 +299,78 @@ export class Client {
     let method = obj.method;
     debug("→ %o", method);
 
-    return new Promise<U>((resolve, reject) => {
-      this.resultPromises[obj.id] = {
-        resolve: x => {
-          debug("← %o (%oms)", method, Date.now() - sentAt);
-          resolve(x);
-        },
-        reject: e => {
-          debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
-          reject(e);
-        },
-      };
-
-      let sentAt = Date.now();
-      this.sendRaw(obj).catch(e => {
-        debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, e.message);
-        reject(e);
-      });
-    });
+    let sentAt = Date.now();
+    try {
+      const res = await this.transport.post(obj.method, obj.params);
+      if (res.error) {
+        throw new RequestError(res.error);
+      }
+      debug("← %o (%oms)", method, Date.now() - sentAt);
+      return res.result;
+    } catch (err) {
+      debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, err.message);
+      throw err;
+    }
   }
 
   sendResult<T>(
+    cid: number,
     rc: IResultCreator<T>,
     id: number,
     result?: T,
     error?: RpcError,
-  ): Promise<void> {
+  ) {
     const obj = rc(id, result, error);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in result ${JSON.stringify(obj)}`);
     }
 
-    if (this.transport.isClosed()) {
-      // just ignore
-      return;
-    }
-
-    this.sendRaw(obj).catch(e => {
+    this.transport.post("@Reply", { cid, payload: obj }).catch(e => {
       this.warn(`could not send result for ${obj.id}: ${e.stack}`);
     });
   }
 
-  private async sendRaw(obj: any) {
-    if (this.transport.isClosed()) {
-      throw new Error(`trying to send on disconnected client`);
+  private async handleMessage(rmJSON: any) {
+    let rm: any = JSON.parse(rmJSON);
+    if (!rm.cid) {
+      throw new Error(`rm missing cid, ignoring`);
     }
 
-    const type = typeof obj;
-    if (type !== "object") {
-      throw new Error(
-        `can only send object via json-rpc, refusing to send ${type}`,
-      );
+    if (!rm.payload) {
+      throw new Error(`rm missing payload, ignoring`);
     }
 
-    if (obj.jsonrpc != "2.0") {
-      throw new Error(
-        `expected message.jsonrpc == '2.0', got ${JSON.stringify(obj.jsonrpc)}`,
-      );
-    }
+    const { cid, payload } = rm;
 
-    const payload = JSON.stringify(obj);
-    await this.transport.post(obj);
-  }
-
-  private onReceiveRaw(line: string) {
-    let obj: any;
-
-    try {
-      obj = JSON.parse(line);
-    } catch (e) {
-      this.sendResult(genericResult, null, null, <RpcError>{
-        code: StandardErrorCode.ParseError,
-        message: e.message,
-      });
-      return;
-    }
-
-    if (typeof obj !== "object") {
-      this.sendResult(genericResult, null, null, <RpcError>{
+    if (typeof payload !== "object") {
+      this.sendResult(cid, genericResult, null, null, <RpcError>{
         code: StandardErrorCode.InvalidRequest,
-        message: `expected object, got ${typeof obj}`,
+        message: `expected object, got ${typeof payload}`,
       });
       return;
     }
 
-    if (obj.jsonrpc != "2.0") {
-      this.sendResult(genericResult, null, null, <RpcError>{
+    if (payload.jsonrpc != "2.0") {
+      this.sendResult(cid, genericResult, null, null, <RpcError>{
         code: StandardErrorCode.InvalidRequest,
-        message: `expected jsonrpc = '2.0', got ${JSON.stringify(obj.jsonrpc)}`,
+        message: `expected jsonrpc = '2.0', got ${JSON.stringify(
+          payload.jsonrpc,
+        )}`,
       });
       return;
     }
 
-    if (typeof obj.id !== "number") {
+    if (typeof payload.id !== "number") {
       // we got a notification!
-      const handler = this.notificationHandlers[obj.method];
+      const handler = this.notificationHandlers[payload.method];
       if (!handler) {
-        this.warn(`no handler for notification ${obj.method}`);
+        this.warn(`no handler for notification ${payload.method}`);
         return;
       }
 
       let retval: any;
       try {
-        retval = handler(obj);
+        retval = handler(payload);
       } catch (e) {
         this.warn(`notification handler error: ${e.stack}`);
         if (this.errorHandler) {
@@ -420,26 +388,26 @@ export class Client {
       return;
     }
 
-    if (obj.method) {
-      let doLog = obj.method !== "Handshake";
+    if (payload.method) {
+      let doLog = payload.method !== "Handshake";
       if (doLog) {
-        debug("⇐ %o", obj.method);
+        debug("⇐ %o", payload.method);
       }
       let receivedAt = Date.now();
-      const handler = this.requestHandlers[obj.method];
+      const handler = this.requestHandlers[payload.method];
       if (!handler) {
-        this.sendResult(genericResult, obj.id, null, <RpcError>{
+        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
           code: StandardErrorCode.MethodNotFound,
-          message: `no handler is registered for method ${obj.method}`,
+          message: `no handler is registered for method ${payload.method}`,
         });
         return;
       }
 
       let retval: any;
       try {
-        retval = handler(obj);
+        retval = handler(payload);
       } catch (e) {
-        this.sendResult(genericResult, obj.id, null, <RpcError>{
+        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
           code: StandardErrorCode.InternalError,
           message: `sync error: ${e.message}`,
           data: {
@@ -452,12 +420,12 @@ export class Client {
       Promise.resolve(retval)
         .then(result => {
           if (doLog) {
-            debug("⇒ %o (%oms)", obj.method, Date.now() - receivedAt);
+            debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
           }
-          this.sendResult(genericResult, obj.id, result, null);
+          this.sendResult(cid, genericResult, payload.id, result, null);
         })
         .catch(e => {
-          this.sendResult(genericResult, obj.id, null, <RpcError>{
+          this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
             code: StandardErrorCode.InternalError,
             message: `async error: ${e.message}`,
             data: {
@@ -468,31 +436,7 @@ export class Client {
       return;
     }
 
-    if (obj.result) {
-      const promise = this.resultPromises[obj.id];
-      if (!promise) {
-        this.warn(`dropped result: ${JSON.stringify(obj.result)}`);
-        return;
-      }
-
-      delete this.resultPromises[obj.id];
-      promise.resolve(obj.result);
-      return;
-    }
-
-    if (obj.error) {
-      const promise = this.resultPromises[obj.id];
-      if (!promise) {
-        this.warn(`dropped error: ${JSON.stringify(obj.result)}`);
-        return;
-      }
-
-      delete this.resultPromises[obj.id];
-      promise.reject(new RequestError(obj.error));
-      return;
-    }
-
-    this.sendResult(genericResult, obj.id, null, <RpcError>{
+    this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
       code: StandardErrorCode.InvalidRequest,
       message: "has id but doesn't have method, result, or error",
     });

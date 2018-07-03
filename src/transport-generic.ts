@@ -7,6 +7,7 @@ import {
 
 // this should only be typing
 import EventSource = require("eventsource");
+import { Agent } from "https";
 
 export class GenericTransport implements Transport {
   private clientId: string;
@@ -19,6 +20,8 @@ export class GenericTransport implements Transport {
   private EventSourceImpl: typeof EventSource;
   private fetchImpl: typeof fetch;
 
+  private agent: Agent;
+
   constructor(EventSourceImpl: typeof EventSource, fetchImpl: typeof fetch) {
     this.EventSourceImpl = EventSourceImpl;
     this.fetchImpl = fetchImpl;
@@ -27,10 +30,20 @@ export class GenericTransport implements Transport {
   async connect(endpoint: IEndpoint, clientId: string) {
     this.endpoint = endpoint;
     this.clientId = clientId;
+
+    {
+      this.agent = new Agent({
+        ca: endpoint.cert,
+      });
+    }
+
     await new Promise((resolve, reject) => {
-      this.source = new this.EventSourceImpl(
-        this.makeURL(`feed?clientId=${clientId}`),
-      );
+      const url = this.makeURL("");
+      this.source = new this.EventSourceImpl(url, {
+        https: {
+          ca: endpoint.cert,
+        },
+      });
       this.source.onmessage = ev => {
         console.log(`EventSource.onmessage`);
         if (this.onMessage) {
@@ -63,22 +76,34 @@ export class GenericTransport implements Transport {
     this.onError = cb;
   }
 
-  async post(payload: any) {
-    const callUrl = `${this.endpoint.address}/call`;
-    const res = await this.fetchImpl(this.makeURL("call"), {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    if (res.status != 200) {
-      throw new Error(`Expected HTTP 200, got HTTP ${res.status}`);
+  async post(path: string, payload: any) {
+    if (this.closed) {
+      throw new Error(`trying to send on disconnected client`);
     }
 
-    return await res.json();
+    const url = this.makeURL(path);
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      agent: this.agent,
+    } as any);
+
+    switch (res.status) {
+      case 200:
+        return await res.json();
+      case 204:
+        return null;
+      default:
+        throw new Error(`Got HTTP ${res.status}`);
+    }
   }
 
   makeURL(path: string) {
     const { address } = this.endpoint;
-    return `https://${address}/${path}?clientId=${this.clientId}`;
+    return `https://${address}/${path}`;
   }
 
   private closed = false;
