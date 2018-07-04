@@ -5,7 +5,8 @@ export function newWebTransport(): Transport {
   return new GenericTransport({
     EventSource: (window as any).EventSource,
     getEventSourceOpts: () => null,
-    fetch: fetch as any /* woooo */,
+    // see https://github.com/orbitjs/orbit/issues/452
+    fetch: window.fetch.bind(window) as any /* woooo */,
     getFetchOpts: () => null,
   });
 }
