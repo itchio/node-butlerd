@@ -1,6 +1,6 @@
 import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
-import { IEndpoint } from "./client";
+import { Endpoint } from "./support";
 const cryptoRandomString = require("crypto-random-string");
 
 const debug = require("debug")("butlerd:instance");
@@ -13,7 +13,7 @@ export interface IButlerOpts {
 export class Instance {
   process: ChildProcess;
   _promise: Promise<void>;
-  _endpointPromise: Promise<IEndpoint>;
+  _endpointPromise: Promise<Endpoint>;
   cancelled = false;
   gracefullyExited = false;
   secret: string;
@@ -24,13 +24,13 @@ export class Instance {
     };
     process.on("exit", onExit);
 
-    let resolveEndpoint: (endpoint: IEndpoint) => void;
+    let resolveEndpoint: (endpoint: Endpoint) => void;
     this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
         reject(new Error("timed out waiting for butlerd to listen"));
       }, 5000);
 
-      resolveEndpoint = (endpoint: IEndpoint) => {
+      resolveEndpoint = (endpoint: Endpoint) => {
         clearTimeout(timeout);
         resolve(endpoint);
       };
@@ -140,7 +140,7 @@ export class Instance {
     });
   }
 
-  async getEndpoint(): Promise<IEndpoint> {
+  async getEndpoint(): Promise<Endpoint> {
     return await this._endpointPromise;
   }
 

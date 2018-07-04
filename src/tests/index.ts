@@ -1,5 +1,6 @@
 require("debug").enable("butlerd:*");
-import { Instance, Client } from "..";
+import { Instance } from "..";
+import { Client } from "../client-node";
 import * as messages from "./test_messages";
 import * as fs from "fs";
 import * as rimraf from "rimraf";
@@ -12,10 +13,6 @@ async function main() {
   await cancelTests();
 }
 
-function newTransport() {
-  return newNodeTransport();
-}
-
 function butlerOpts(): IButlerOpts {
   return {
     butlerExecutable: which.sync("butler"),
@@ -26,7 +23,7 @@ function butlerOpts(): IButlerOpts {
 async function cancelTests() {
   console.log(`Running cancel tests...`);
   let s = new Instance(butlerOpts());
-  const client = new Client(await s.getEndpoint(), newTransport());
+  const client = new Client(await s.getEndpoint());
   await client.connect();
   s.cancel();
   let rejected = false;
@@ -47,7 +44,7 @@ async function normalTests() {
   console.log(`Running normal tests...`);
   let s = new Instance(butlerOpts());
 
-  const client = new Client(await s.getEndpoint(), newTransport());
+  const client = new Client(await s.getEndpoint());
   await client.connect();
   await testClient(s, client);
   s.cancel();
@@ -79,7 +76,7 @@ async function testClient(s: Instance, client: Client) {
   assertEqual(dtres.number, input * 4, "number was doubled twice");
 
   {
-    const c2 = new Client(endpoint, newTransport());
+    const c2 = new Client(endpoint);
     await c2.connect();
 
     console.log(`Calling VersionGet on c2...`);
@@ -100,7 +97,7 @@ async function testClient(s: Instance, client: Client) {
   }
 
   {
-    const c3 = new Client(endpoint, newTransport());
+    const c3 = new Client(endpoint);
     await c3.connect();
 
     console.log(`Calling VersionGet on c3...`);

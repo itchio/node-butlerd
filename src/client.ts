@@ -1,187 +1,52 @@
+import {
+  RequestHandler,
+  NotificationHandler,
+  ErrorHandler,
+  WarningHandler,
+  Endpoint,
+  RequestCreator,
+  NotificationCreator,
+  Creator,
+  CreatorKind,
+  RequestError,
+  ResultCreator,
+  RpcError,
+  StandardErrorCode,
+  createResult,
+} from "./support";
 import { Transport } from "./transport";
 
 var debug = require("debug")("butlerd:client");
 
-export enum StandardErrorCode {
-  ParseError = -32700,
-  InvalidRequest = -32600,
-  MethodNotFound = -32601,
-  InvalidParams = -32602,
-  InternalError = -32603,
-}
-
-export enum CreatorKind {
-  Request = 1,
-  Notification = 2,
-}
-
-export interface IEndpoint {
-  address: string;
-  secret: string;
-  cert: string;
-}
-
-export type ICreator = {
-  __kind?: CreatorKind;
-};
-
-export type IRequestCreator<T, U> = ((
-  params: T,
-) => (client: Client) => IRequest<T, U>) &
-  ICreator;
-export type INotificationCreator<T> = ((params: T) => INotification<T>) &
-  ICreator;
-
-export type IResultCreator<T> = (
-  id: number | null,
-  result?: T,
-  error?: RpcError,
-) => IResult<T>;
-
-export enum RequestType {
-  Request = 0,
-  Notification = 1,
-}
-
-export const createRequest = <T, U>(method: string): IRequestCreator<T, U> => {
-  let rc = ((params: T) => (client: Client) => ({
-    jsonrpc: "2.0",
-    method,
-    id: client.generateID(),
-    params,
-  })) as IRequestCreator<T, U>;
-  rc.__kind = CreatorKind.Request;
-  return rc;
-};
-
-export const createNotification = <T>(
-  method: string,
-): INotificationCreator<T> => {
-  let nc = ((params: T) => ({
-    jsonrpc: "2.0",
-    method,
-    params,
-  })) as INotificationCreator<T>;
-  nc.__kind = CreatorKind.Notification;
-  return nc;
-};
-
-export function asRequestCreator(x: ICreator): IRequestCreator<any, any> {
-  if (x.__kind == CreatorKind.Request) {
-    return x as IRequestCreator<any, any>;
-  }
-  return null;
-}
-
-export function asNotificationCreator(x: ICreator): INotificationCreator<any> {
-  if (x.__kind == CreatorKind.Notification) {
-    return x as INotificationCreator<any>;
-  }
-  return null;
-}
-
-export const createResult = <T>(): IResultCreator<T> => (
-  id: number | null,
-  result?: T,
-  error?: RpcError,
-) => {
-  if (error) {
-    return {
-      jsonrpc: "2.0",
-      error,
-      id,
-    };
-  } else {
-    return {
-      jsonrpc: "2.0",
-      result,
-      id,
-    };
-  }
-};
-
-export const genericResult = createResult<void>();
-
-const Handshake = createRequest<{ message: string }, { signature: string }>(
-  "Handshake",
-);
-
-export interface INotification<T> {
-  method: string;
-  params?: T;
-}
-
-export interface IRequest<T, U> extends INotification<T> {
-  id: number;
-}
-
-export interface IResult<T> {
-  id: number | null;
-  result?: T;
-  error?: RpcError;
-}
-
-export interface RpcError {
-  code: number;
-  message: string;
-  data?: any;
-}
-
-function formatRpcError(rpcError: RpcError): string {
-  if (rpcError.code === StandardErrorCode.InternalError) {
-    // don't prefix internal errors, for readability.
-    // if a `RequestError` is caught, it can still be
-    // detected by checking `.rpcError`
-    return rpcError.message;
-  }
-
-  return `JSON-RPC error ${rpcError.code}: ${rpcError.message}`;
-}
-
-export class RequestError extends Error {
-  rpcError: RpcError;
-
-  constructor(rpcError: RpcError) {
-    super(formatRpcError(rpcError));
-    this.rpcError = rpcError;
-  }
-}
-
-interface IResultPromises {
+interface ResultPromises {
   [key: number]: {
     resolve: (payload: any) => void;
     reject: (e: Error) => void;
   };
 }
 
-export type IRequestHandler<T, U> = (payload: IRequest<T, U>) => U | Promise<U>;
-
-interface IRequestHandlers {
-  [method: string]: IRequestHandler<any, any>;
+interface RequestHandlers {
+  [method: string]: RequestHandler<any, any>;
 }
 
-export type INotificationHandler<T> = (payload: INotification<T>) => any;
-
-interface INotificationHandlers {
-  [method: string]: INotificationHandler<any>;
+interface NotificationHandlers {
+  [method: string]: NotificationHandler<any>;
 }
 
-export type IErrorHandler = (e: Error) => void;
-
-export type IWarningHandler = (msg: string) => void;
+const genericResult = createResult<void>();
 
 export class Client {
-  private resultPromises: IResultPromises = {};
-  private requestHandlers: IRequestHandlers = {};
-  private notificationHandlers: INotificationHandlers = {};
-  private errorHandler: IErrorHandler = null;
-  private warningHandler: IWarningHandler = null;
-  private endpoint: IEndpoint;
+  private resultPromises: ResultPromises = {};
+  private requestHandlers: RequestHandlers = {};
+  private notificationHandlers: NotificationHandlers = {};
+  private errorHandler: ErrorHandler = null;
+  private warningHandler: WarningHandler = null;
+  private endpoint: Endpoint;
   private clientId: string;
   private transport: Transport;
   idSeed = 0;
 
-  constructor(endpoint: IEndpoint, transport: Transport) {
+  constructor(endpoint: Endpoint, transport: Transport) {
     this.endpoint = endpoint;
     this.clientId = `client-${(Math.random() * 1024 * 1024).toFixed(0)}`;
 
@@ -234,26 +99,26 @@ export class Client {
     this.shutdown(new Error("connection closed by client"));
   }
 
-  onError(handler: IErrorHandler) {
+  onError(handler: ErrorHandler) {
     this.errorHandler = handler;
   }
 
-  onWarning(handler: IWarningHandler) {
+  onWarning(handler: WarningHandler) {
     this.warningHandler = handler;
   }
 
-  on<T, U>(rc: IRequestCreator<T, U>, handler: (p: T) => Promise<U>);
-  on<T>(nc: INotificationCreator<T>, handler: (p: T) => Promise<void>);
+  on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
+  on<T>(nc: NotificationCreator<T>, handler: (p: T) => Promise<void>);
 
-  on(c: ICreator, handler: (p: any) => Promise<any>) {
+  on(c: Creator, handler: (p: any) => Promise<any>) {
     if (c.__kind === CreatorKind.Request) {
       this.onRequest(
-        c as IRequestCreator<any, any>,
+        c as RequestCreator<any, any>,
         async payload => await handler(payload.params),
       );
     } else if (c.__kind === CreatorKind.Notification) {
       this.onNotification(
-        c as INotificationCreator<any>,
+        c as NotificationCreator<any>,
         async payload => await handler(payload.params),
       );
     } else {
@@ -261,7 +126,7 @@ export class Client {
     }
   }
 
-  onRequest<T, U>(rc: IRequestCreator<T, U>, handler: IRequestHandler<T, U>) {
+  onRequest<T, U>(rc: RequestCreator<T, U>, handler: RequestHandler<T, U>) {
     const sample = rc(null)(this);
     const { method } = sample;
 
@@ -272,8 +137,8 @@ export class Client {
   }
 
   onNotification<T>(
-    nc: INotificationCreator<T>,
-    handler: INotificationHandler<T>,
+    nc: NotificationCreator<T>,
+    handler: NotificationHandler<T>,
   ) {
     const example = nc(null);
     const { method } = example;
@@ -286,11 +151,11 @@ export class Client {
     this.notificationHandlers[method] = handler;
   }
 
-  notify<T>(nc: INotificationCreator<T>, params?: T) {
+  notify<T>(nc: NotificationCreator<T>, params?: T) {
     const obj = nc(params);
   }
 
-  async call<T, U>(rc: IRequestCreator<T, U>, params: T): Promise<U> {
+  async call<T, U>(rc: RequestCreator<T, U>, params: T): Promise<U> {
     const obj = rc(params || ({} as T))(this);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
@@ -315,7 +180,7 @@ export class Client {
 
   sendResult<T>(
     cid: number,
-    rc: IResultCreator<T>,
+    rc: ResultCreator<T>,
     id: number,
     result?: T,
     error?: RpcError,
@@ -389,10 +254,7 @@ export class Client {
     }
 
     if (payload.method) {
-      let doLog = payload.method !== "Handshake";
-      if (doLog) {
-        debug("⇐ %o", payload.method);
-      }
+      debug("⇐ %o", payload.method);
       let receivedAt = Date.now();
       const handler = this.requestHandlers[payload.method];
       if (!handler) {
@@ -417,22 +279,20 @@ export class Client {
         return;
       }
 
-      Promise.resolve(retval)
-        .then(result => {
-          if (doLog) {
-            debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
-          }
-          this.sendResult(cid, genericResult, payload.id, result, null);
-        })
-        .catch(e => {
-          this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
-            code: StandardErrorCode.InternalError,
-            message: `async error: ${e.message}`,
-            data: {
-              stack: e.stack,
-            },
-          });
+      try {
+        const result = await Promise.resolve(retval);
+        debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
+        this.sendResult(cid, genericResult, payload.id, result, null);
+      } catch (e) {
+        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
+          code: StandardErrorCode.InternalError,
+          message: `async error: ${e.message}`,
+          data: {
+            stack: e.stack,
+          },
         });
+      }
+
       return;
     }
 

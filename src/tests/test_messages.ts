@@ -1,11 +1,11 @@
 import {
   createRequest,
   createNotification,
-  Client,
   IRequest,
   INotification,
   CreatorKind,
-} from "../client";
+} from "../support";
+import { Client } from "../client";
 
 /**
  * Params for Connection.New

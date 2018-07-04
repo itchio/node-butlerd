@@ -1,17 +1,17 @@
-import { IEndpoint } from "./client";
+import { Endpoint } from "./support";
 import {
   Transport,
   TransportMessageListener,
   TransportErrorListener,
 } from "./transport";
 
-// this should only be typing
+// FIXME: this should only be typing
 import EventSource = require("eventsource");
 import { Agent } from "https";
 
 export class GenericTransport implements Transport {
   private clientId: string;
-  private endpoint: IEndpoint;
+  private endpoint: Endpoint;
 
   private source: EventSource;
   private onError: TransportErrorListener;
@@ -27,7 +27,7 @@ export class GenericTransport implements Transport {
     this.fetchImpl = fetchImpl;
   }
 
-  async connect(endpoint: IEndpoint, clientId: string) {
+  async connect(endpoint: Endpoint, clientId: string) {
     this.endpoint = endpoint;
     this.clientId = clientId;
 

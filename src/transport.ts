@@ -1,4 +1,4 @@
-import { IEndpoint } from "./client";
+import { Endpoint } from "./support";
 
 export interface TransportMessageListener {
   (msg: any): void;
@@ -9,7 +9,7 @@ export interface TransportErrorListener {
 }
 
 export interface Transport {
-  connect(endpoint: IEndpoint, clientId: string): Promise<void>;
+  connect(endpoint: Endpoint, clientId: string): Promise<void>;
   setOnError(cb: TransportErrorListener);
   setOnMessage(cb: TransportMessageListener);
   post(path: string, payload: any): Promise<any>;
