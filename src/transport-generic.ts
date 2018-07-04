@@ -5,26 +5,36 @@ import {
   TransportErrorListener,
 } from "./transport";
 
-// FIXME: this should only be typing
-import EventSource = require("eventsource");
 import { Agent } from "https";
+import {
+  EventSourceImpl,
+  FetchImpl,
+  EventSourceInstance,
+  FetchOpts,
+  EventSourceOpts,
+} from "./transport-types";
+
+export interface TransportImplementations {
+  EventSource: EventSourceImpl;
+  fetch: FetchImpl;
+  getFetchOpts: (endpoint: Endpoint) => Partial<FetchOpts> | null;
+  getEventSourceOpts: (endpoint: Endpoint) => Partial<EventSourceOpts> | null;
+}
 
 export class GenericTransport implements Transport {
   private clientId: string;
   private endpoint: Endpoint;
 
-  private source: EventSource;
+  private source: EventSourceInstance;
   private onError: TransportErrorListener;
   private onMessage: TransportMessageListener;
 
-  private EventSourceImpl: typeof EventSource;
-  private fetchImpl: typeof fetch;
+  private impls: TransportImplementations;
 
   private agent: Agent;
 
-  constructor(EventSourceImpl: typeof EventSource, fetchImpl: typeof fetch) {
-    this.EventSourceImpl = EventSourceImpl;
-    this.fetchImpl = fetchImpl;
+  constructor(impls: TransportImplementations) {
+    this.impls = impls;
   }
 
   async connect(endpoint: Endpoint, clientId: string) {
@@ -39,20 +49,17 @@ export class GenericTransport implements Transport {
 
     await new Promise((resolve, reject) => {
       const url = this.makeURL("");
-      this.source = new this.EventSourceImpl(url, {
-        https: {
-          ca: endpoint.cert,
-        },
-      });
+      this.source = new this.impls.EventSource(
+        url,
+        this.impls.getEventSourceOpts(endpoint),
+      );
       this.source.onmessage = ev => {
-        console.log(`EventSource.onmessage`);
         if (this.onMessage) {
           this.onMessage((ev as any).data);
         }
       };
 
       this.source.onerror = ev => {
-        console.log(`EventSource.onerror`);
         const err = new Error(
           `EventSource error: ${JSON.stringify(ev, null, 2)}`,
         );
@@ -62,7 +69,6 @@ export class GenericTransport implements Transport {
         }
       };
       this.source.onopen = ev => {
-        console.log(`EventSource.onopen`);
         resolve();
       };
     });
@@ -82,13 +88,13 @@ export class GenericTransport implements Transport {
     }
 
     const url = this.makeURL(path);
-    const res = await this.fetchImpl(url, {
+    const res = await this.impls.fetch(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
       },
       body: JSON.stringify(payload),
-      agent: this.agent,
+      ...this.impls.getFetchOpts(this.endpoint),
     } as any);
 
     switch (res.status) {

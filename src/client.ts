@@ -59,7 +59,6 @@ export class Client {
 
   async connect() {
     this.transport.setOnMessage((msg: any) => {
-      console.log(`Client received message! `, msg);
       this.handleMessage(msg).catch(e => {
         this.warn(e.stack);
       });
@@ -69,9 +68,7 @@ export class Client {
       this.shutdown(e);
     });
 
-    console.log(`Calling transport.connect...`);
     await this.transport.connect(this.endpoint, this.clientId);
-    console.log(`transport.connect returned`);
   }
 
   private shutdown(e: Error) {
