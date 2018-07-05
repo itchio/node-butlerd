@@ -18,9 +18,7 @@ export function newElectronTransport(endpoint: Endpoint): Transport {
       cb: (verificationResult: number) => void,
     ) => {
       if (req.certificate.data == ca.toString("utf8")) {
-        debug(
-          `Trusting certificate '${JSON.stringify(req.certificate, null, 2)}'`,
-        );
+        debug(`Trusting self-signed certificate for ${req.hostname}`);
         cb(0);
         return;
       }

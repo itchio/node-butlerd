@@ -78,10 +78,8 @@ export class EventSourceElectron implements EventSourceInstance {
         lineLength: number,
       ) => {
         if (lineLength === 0) {
-          debug("lineLength is 0, data = %o", data);
           if (data.length > 0) {
             let type = eventName || "message";
-            debug("emitting event of type %s", type);
             this.emit(
               type,
               new Event(type, {
@@ -207,7 +205,6 @@ export class EventSourceElectron implements EventSourceInstance {
   }
 
   private setListener(ev: string, l: EventListener) {
-    debug(`Setting listener for event ${ev}`);
     this.emitter.removeAllListeners(ev);
     this.emitter.addListener(ev, l);
   }

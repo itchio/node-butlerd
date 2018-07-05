@@ -7,13 +7,13 @@
     "index.js": "browser.js"
   },
   "electron-main": {
-    "index.js": "electron.js"
+    "index.js": "electron-main.js"
   },
   "types": "lib/index.d.ts",
   "scripts": {
     "prepare": "npm run compile",
     "precompile": "tsc",
-    "compile": "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
+    "compile": "tsc && rm -rf lib.development lib.production && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
     "test": "npm run precompile && npm run electron-test && npm run node-test",
     "electron-test": "electron lib/tests/index.js",
     "node-test": "node lib/tests/index.js"
