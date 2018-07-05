@@ -111,3 +111,9 @@ export interface TestDoubleResult {
 export const TestDouble = createRequest<TestDoubleParams, TestDoubleResult>(
   "Test.Double",
 );
+
+export const Progress = createNotification<{
+  progress: number;
+  eta: number;
+  bps: number;
+}>("Progress");

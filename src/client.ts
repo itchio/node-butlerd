@@ -309,7 +309,7 @@ export class Conversation {
 
     this.client.transport
       .post({
-        path: "/reply",
+        path: "reply",
         payload: obj,
         headers: {
           "x-cid": `${this.cid}`,

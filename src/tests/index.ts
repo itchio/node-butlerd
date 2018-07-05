@@ -46,7 +46,13 @@ async function main() {
 function butlerOpts(): IButlerOpts {
   return {
     butlerExecutable: which.sync("butler"),
-    args: ["--dbpath", "./tmp/butler.db", "--destiny-pid", `${process.pid}`],
+    args: [
+      "--dbpath",
+      "./tmp/butler.db",
+      "--destiny-pid",
+      `${process.pid}`,
+      "--log",
+    ],
   };
 }
 
@@ -99,6 +105,9 @@ async function testClient(s: Instance, client: Client) {
       number: input,
     },
     conv => {
+      conv.on(messages.Progress, async progress => {
+        console.log(`<(._.)> ${JSON.stringify(progress)}`);
+      });
       conv.on(messages.TestDouble, async ({ number }) => {
         return { number: number * 2 };
       });
