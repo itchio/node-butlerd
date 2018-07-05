@@ -61,6 +61,7 @@
     "electron-fetch": "^1.1.0",
     "eventsource": "^1.0.5",
     "node-fetch": "^2.1.2",
+    "original": "^1.0.1",
     "split2": "^2.2.0"
   }
 }

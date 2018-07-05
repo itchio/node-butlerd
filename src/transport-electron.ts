@@ -1,10 +1,10 @@
 var debug = require("debug")("butlerd:transport-electron");
 import { Transport } from "./transport";
 import { GenericTransport } from "./transport-generic";
-import EventSource = require("eventsource");
 import fetch = require("electron-fetch");
 import { session, CertificateVerifyProcRequest } from "electron";
 import { Endpoint } from "./support";
+import { EventSourceElectron } from "./eventsource-electron";
 
 const partition = "__node-butlerd__";
 
@@ -31,10 +31,8 @@ export function newElectronTransport(endpoint: Endpoint): Transport {
   );
 
   return new GenericTransport(endpoint, {
-    EventSource,
-    eventSourceOpts: {
-      https: { ca },
-    },
+    EventSource: EventSourceElectron,
+    eventSourceOpts: { session: customSession },
     fetch: fetch as any /* woo */,
     fetchOpts: { session: customSession },
   });

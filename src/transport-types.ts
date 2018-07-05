@@ -11,6 +11,9 @@ export interface EventSourceOpts {
   https?: {
     ca?: any;
   };
+
+  // electron-only
+  session?: any;
 }
 
 export interface EventSourceInstance {
