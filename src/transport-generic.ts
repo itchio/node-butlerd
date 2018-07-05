@@ -1,11 +1,12 @@
+var debug = require("debug")("butlerd:transport-generic");
 import { Endpoint } from "./support";
 import {
   Transport,
   TransportMessageListener,
   TransportErrorListener,
+  PostOptions,
 } from "./transport";
 
-import { Agent } from "https";
 import {
   EventSourceImpl,
   FetchImpl,
@@ -17,84 +18,70 @@ import {
 export interface TransportImplementations {
   EventSource: EventSourceImpl;
   fetch: FetchImpl;
-  getFetchOpts: (endpoint: Endpoint) => Partial<FetchOpts> | null;
-  getEventSourceOpts: (endpoint: Endpoint) => Partial<EventSourceOpts> | null;
+  fetchOpts: Partial<FetchOpts> | null;
+  eventSourceOpts: Partial<EventSourceOpts> | null;
 }
 
 export class GenericTransport implements Transport {
-  private clientId: string;
   private endpoint: Endpoint;
 
-  private source: EventSourceInstance;
-  private onError: TransportErrorListener;
-  private onMessage: TransportMessageListener;
-
   private impls: TransportImplementations;
+  private fetch: FetchImpl;
 
-  private agent: Agent;
-
-  constructor(impls: TransportImplementations) {
+  constructor(endpoint: Endpoint, impls: TransportImplementations) {
+    this.endpoint = endpoint;
     this.impls = impls;
+    // weird workaround - if we don't do that we end up
+    // with 'Illegal invocation of fetch, cannot call on Window'
+    this.fetch = impls.fetch.bind(undefined);
   }
 
-  async connect(endpoint: Endpoint, clientId: string) {
-    this.endpoint = endpoint;
-    this.clientId = clientId;
-
-    {
-      this.agent = new Agent({
-        ca: endpoint.cert,
-      });
-    }
-
-    await new Promise((resolve, reject) => {
-      const url = this.makeURL("");
-      this.source = new this.impls.EventSource(
-        url,
-        this.impls.getEventSourceOpts(endpoint),
+  async makeEventSource(
+    cid: number,
+    onMessage: TransportMessageListener,
+    onError: TransportErrorListener,
+  ): Promise<EventSourceInstance> {
+    const p = new Promise<EventSourceInstance>((resolve, reject) => {
+      const url = this.makeURL(
+        `feed?secret=${this.endpoint.secret}&cid=${cid}`,
       );
-      this.source.onmessage = ev => {
-        if (this.onMessage) {
-          this.onMessage((ev as any).data);
-        }
+      debug(`GET ${url}`);
+      let source = new this.impls.EventSource(url, this.impls.eventSourceOpts);
+      source.onmessage = ev => {
+        debug(`SSE message: ${(ev as any).data}`);
+        onMessage((ev as any).data);
       };
 
-      this.source.onerror = ev => {
+      source.onerror = ev => {
         const err = new Error(
           `EventSource error: ${JSON.stringify(ev, null, 2)}`,
         );
+        debug(`SSE error: ${err.stack}`);
         reject(err);
-        if (this.onError) {
-          this.onError(err);
-        }
+        onError(err);
       };
-      this.source.onopen = ev => {
-        resolve();
+
+      source.onopen = ev => {
+        resolve(source);
       };
     });
+    return await p;
   }
 
-  setOnMessage(cb: TransportMessageListener) {
-    this.onMessage = cb;
-  }
+  async post(opts: PostOptions) {
+    const url = this.makeURL(opts.path);
+    debug(`POST ${url}`);
+    let headers = {
+      "content-type": "application/json",
+      "x-secret": this.endpoint.secret,
+      ...opts.headers,
+    };
 
-  setOnError(cb: TransportErrorListener) {
-    this.onError = cb;
-  }
-
-  async post(path: string, payload: any) {
-    if (this.closed) {
-      throw new Error(`trying to send on disconnected client`);
-    }
-
-    const url = this.makeURL(path);
-    const res = await this.impls.fetch(url, {
+    const res = await this.fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      ...this.impls.getFetchOpts(this.endpoint),
+      headers,
+      body: JSON.stringify(opts.payload),
+      ...this.impls.fetchOpts,
     } as any);
 
     switch (res.status) {
@@ -103,24 +90,12 @@ export class GenericTransport implements Transport {
       case 204:
         return null;
       default:
-        throw new Error(`Got HTTP ${res.status}`);
+        throw new Error(`Got HTTP ${res.status}: ${await res.text()}`);
     }
   }
 
   makeURL(path: string) {
-    const { address } = this.endpoint;
+    const { address } = this.endpoint.https;
     return `https://${address}/${path}`;
-  }
-
-  private closed = false;
-  close() {
-    if (!this.closed) {
-      this.closed = true;
-      this.source.close();
-    }
-  }
-
-  isClosed() {
-    return this.closed;
   }
 }

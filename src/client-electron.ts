@@ -1,9 +1,9 @@
 import * as client from "./client";
 import { Endpoint } from "./support";
-import { newNodeTransport } from "./transport-node";
+import { newElectronTransport } from "./transport-electron";
 
 export class Client extends client.Client {
   constructor(endpoint: Endpoint) {
-    super(endpoint, newNodeTransport(endpoint));
+    super(endpoint, newElectronTransport(endpoint));
   }
 }

@@ -1,7 +1,6 @@
 import * as split2 from "split2";
 import { spawn, ChildProcess } from "child_process";
 import { Endpoint } from "./support";
-const cryptoRandomString = require("crypto-random-string");
 
 const debug = require("debug")("butlerd:instance");
 
@@ -56,7 +55,7 @@ export class Instance {
       let errLines = [];
 
       const onClose = (code: number, signal: string) => {
-        process.removeListener("exit", onExit);
+        process.removeListener("exit" as any, onExit);
         debug("butler closed, signal %s, code %d", signal, code);
         if (signal) {
           if (this.cancelled) {
@@ -103,11 +102,7 @@ export class Instance {
 
         switch (data.type) {
           case "butlerd/listen-notification": {
-            resolveEndpoint({
-              address: data.address,
-              secret: data.secret,
-              cert: data.cert,
-            });
+            resolveEndpoint(data);
             break;
           }
           case "log": {

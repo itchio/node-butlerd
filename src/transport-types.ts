@@ -9,7 +9,7 @@ export interface EventSourceImpl {
 export interface EventSourceOpts {
   // node-only
   https?: {
-    ca?: string;
+    ca?: any;
   };
 }
 
@@ -30,8 +30,12 @@ export interface FetchOpts {
     [key: string]: string;
   };
   body?: string;
+
   // node-only
-  agent?: any;
+  agent?: any; // of type require("https").Agent
+
+  // electron-only
+  session?: any; // of type require("electron").session.Session
 }
 
 export interface FetchImpl {
@@ -41,4 +45,5 @@ export interface FetchImpl {
 export interface FetchResponse {
   status?: number;
   json(): Promise<any>;
+  text(): Promise<any>;
 }

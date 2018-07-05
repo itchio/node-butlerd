@@ -1,30 +1,59 @@
 require("debug").enable("butlerd:*");
 import { Instance } from "..";
-import { Client } from "../client-node";
 import * as messages from "./test_messages";
-import * as fs from "fs";
-import * as rimraf from "rimraf";
 import * as which from "which";
-import { newNodeTransport } from "../transport-node";
 import { IButlerOpts } from "../instance";
+import { Endpoint } from "../support";
+import { Client } from "../client";
+
+interface ClientImpl {
+  new (endpoint: Endpoint): Client;
+}
+let TestedClient: ClientImpl;
+
+const inElectron = (process as any).type === "browser";
+if (inElectron) {
+  TestedClient = require("../client-electron").Client;
+} else {
+  TestedClient = require("../client-node").Client;
+}
 
 async function main() {
-  await normalTests();
-  await cancelTests();
+  let exitCode = 0;
+  try {
+    if (inElectron) {
+      await new Promise((resolve, reject) => {
+        setTimeout(() => {
+          reject(new Error("app wasn't ready in 5s, what"));
+        }, 5 * 1000);
+        require("electron").app.on("ready", resolve);
+      });
+    }
+    await normalTests();
+    await cancelTests();
+  } catch (e) {
+    console.error(e.stack);
+    exitCode = 1;
+  } finally {
+    if (inElectron) {
+      require("electron").app.exit(exitCode);
+    } else {
+      process.exit(exitCode);
+    }
+  }
 }
 
 function butlerOpts(): IButlerOpts {
   return {
     butlerExecutable: which.sync("butler"),
-    args: ["--dbpath", "./tmp/butler.db"],
+    args: ["--dbpath", "./tmp/butler.db", "--destiny-pid", `${process.pid}`],
   };
 }
 
 async function cancelTests() {
   console.log(`Running cancel tests...`);
   let s = new Instance(butlerOpts());
-  const client = new Client(await s.getEndpoint());
-  await client.connect();
+  const client = new TestedClient(await s.getEndpoint());
   s.cancel();
   let rejected = false;
   client
@@ -44,8 +73,7 @@ async function normalTests() {
   console.log(`Running normal tests...`);
   let s = new Instance(butlerOpts());
 
-  const client = new Client(await s.getEndpoint());
-  await client.connect();
+  const client = new TestedClient(await s.getEndpoint());
   await testClient(s, client);
   s.cancel();
   await s.promise();
@@ -65,57 +93,19 @@ async function testClient(s: Instance, client: Client) {
 
   const input = 256;
 
-  client.on(messages.TestDouble, async ({ number }) => {
-    return { number: number * 2 };
-  });
-
-  const dtres = await client.call(messages.TestDoubleTwice, {
-    number: input,
-  });
+  const dtres = await client.call(
+    messages.TestDoubleTwice,
+    {
+      number: input,
+    },
+    conv => {
+      conv.on(messages.TestDouble, async ({ number }) => {
+        return { number: number * 2 };
+      });
+    },
+  );
 
   assertEqual(dtres.number, input * 4, "number was doubled twice");
-
-  {
-    const c2 = new Client(endpoint);
-    await c2.connect();
-
-    console.log(`Calling VersionGet on c2...`);
-    const versionResult = await c2.call(messages.VersionGet, {});
-    console.log(`<-- (c2) Version.Get: ${JSON.stringify(versionResult)}`);
-
-    c2.close();
-
-    let threw = false;
-    try {
-      console.log(`Calling VersionGet on (closed) c2...`);
-      await c2.call(messages.VersionGet, {});
-    } catch (e) {
-      threw = true;
-    }
-
-    assertEqual(threw, true, "did throw after close (c2)");
-  }
-
-  {
-    const c3 = new Client(endpoint);
-    await c3.connect();
-
-    console.log(`Calling VersionGet on c3...`);
-    const versionResult = await c3.call(messages.VersionGet, {});
-    console.log(`<-- (c3) Version.Get: ${JSON.stringify(versionResult)}`);
-
-    await s.cancel();
-
-    let threw = false;
-    try {
-      console.log(`Calling VersionGet on (closed) c3...`);
-      await c3.call(messages.VersionGet, {});
-    } catch (e) {
-      threw = true;
-    }
-
-    assertEqual(threw, true, "did throw after close (c3)");
-  }
 }
 
 process.on("unhandledRejection", e => {

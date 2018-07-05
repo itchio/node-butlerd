@@ -15,6 +15,7 @@ import {
   createResult,
 } from "./support";
 import { Transport } from "./transport";
+import { EventSourceInstance } from "./transport-types";
 
 var debug = require("debug")("butlerd:client");
 
@@ -35,16 +36,17 @@ interface NotificationHandlers {
 
 const genericResult = createResult<void>();
 
+export type SetupFunc = (c: Conversation) => void;
+
 export class Client {
-  private resultPromises: ResultPromises = {};
-  private requestHandlers: RequestHandlers = {};
-  private notificationHandlers: NotificationHandlers = {};
-  private errorHandler: ErrorHandler = null;
-  private warningHandler: WarningHandler = null;
-  private endpoint: Endpoint;
-  private clientId: string;
-  private transport: Transport;
-  idSeed = 0;
+  errorHandler: ErrorHandler = null;
+  warningHandler: WarningHandler = null;
+  endpoint: Endpoint;
+  clientId: string;
+  transport: Transport;
+
+  idSeed = 1;
+  cidSeed = 1;
 
   constructor(endpoint: Endpoint, transport: Transport) {
     this.endpoint = endpoint;
@@ -57,31 +59,11 @@ export class Client {
     return this.idSeed++;
   }
 
-  async connect() {
-    this.transport.setOnMessage((msg: any) => {
-      this.handleMessage(msg).catch(e => {
-        this.warn(e.stack);
-      });
-    });
-
-    this.transport.setOnError((e: Error) => {
-      this.shutdown(e);
-    });
-
-    await this.transport.connect(this.endpoint, this.clientId);
+  generateCID(): number {
+    return this.cidSeed++;
   }
 
-  private shutdown(e: Error) {
-    this.transport.close();
-
-    for (const key of Object.keys(this.resultPromises)) {
-      const rp = this.resultPromises[key];
-      rp.reject(e);
-    }
-    this.resultPromises = {};
-  }
-
-  private warn(msg: string) {
+  warn(msg: string) {
     if (this.warningHandler) {
       try {
         this.warningHandler(msg);
@@ -91,11 +73,6 @@ export class Client {
     console.warn(msg);
   }
 
-  close() {
-    this.transport.close();
-    this.shutdown(new Error("connection closed by client"));
-  }
-
   onError(handler: ErrorHandler) {
     this.errorHandler = handler;
   }
@@ -103,6 +80,97 @@ export class Client {
   onWarning(handler: WarningHandler) {
     this.warningHandler = handler;
   }
+
+  notify<T>(nc: NotificationCreator<T>, params?: T) {
+    const obj = nc(params);
+  }
+
+  async call<T, U>(
+    rc: RequestCreator<T, U>,
+    params: T,
+    setup?: SetupFunc,
+  ): Promise<U> {
+    const obj = rc(params || ({} as T))(this);
+    if (typeof obj.id !== "number") {
+      throw new Error(`missing id in request ${JSON.stringify(obj)}`);
+    }
+
+    let method = obj.method;
+    if (setup) {
+      debug("⇒ %o", method);
+    } else {
+      debug("→ %o", method);
+    }
+
+    let sentAt = Date.now();
+
+    let headers = {
+      "x-id": `${obj.id}`,
+      "x-cid": undefined,
+    };
+    let conversation: Conversation;
+
+    // in-convo request
+    try {
+      if (setup) {
+        const cid = this.generateCID();
+        conversation = new Conversation(cid, this);
+        setup(conversation);
+        await conversation.connect();
+        headers["x-cid"] = `${cid}`;
+      }
+
+      const path = `call/${obj.method}`;
+      const res = await this.transport.post({
+        path,
+        payload: obj.params,
+        headers,
+      });
+      if (res.error) {
+        throw new RequestError(res.error);
+      }
+      debug("← %o (%oms)", method, Date.now() - sentAt);
+      return res.result;
+    } catch (err) {
+      debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, err.message);
+      throw err;
+    } finally {
+      if (conversation) {
+        conversation.close();
+      }
+    }
+  }
+}
+
+export class Conversation {
+  private notificationHandlers: NotificationHandlers = {};
+  private requestHandlers: RequestHandlers = {};
+  private client: Client;
+  private cid: number;
+  private eventSource: EventSourceInstance;
+
+  constructor(cid: number, client: Client) {
+    this.cid = cid;
+    this.client = client;
+  }
+
+  async connect() {
+    this.eventSource = await this.client.transport.makeEventSource(
+      this.cid,
+      this.onMessage,
+      this.onError,
+    );
+  }
+
+  onMessage = (payloadJSON: string) => {
+    this.handleMessage(payloadJSON).catch(e => {
+      console.error(`EventSource handleMessage error: ${e}`);
+    });
+  };
+
+  onError = (err: Error) => {
+    console.error(`EventSource error: ${err.stack || err}`);
+  };
 
   on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
   on<T>(nc: NotificationCreator<T>, handler: (p: T) => Promise<void>);
@@ -124,7 +192,7 @@ export class Client {
   }
 
   onRequest<T, U>(rc: RequestCreator<T, U>, handler: RequestHandler<T, U>) {
-    const sample = rc(null)(this);
+    const sample = rc(null)(this.client);
     const { method } = sample;
 
     if (this.requestHandlers[method]) {
@@ -148,114 +216,44 @@ export class Client {
     this.notificationHandlers[method] = handler;
   }
 
-  notify<T>(nc: NotificationCreator<T>, params?: T) {
-    const obj = nc(params);
-  }
-
-  async call<T, U>(rc: RequestCreator<T, U>, params: T): Promise<U> {
-    const obj = rc(params || ({} as T))(this);
-    if (typeof obj.id !== "number") {
-      throw new Error(`missing id in request ${JSON.stringify(obj)}`);
-    }
-
-    let method = obj.method;
-    debug("→ %o", method);
-
-    let sentAt = Date.now();
-    try {
-      const res = await this.transport.post(obj.method, obj.params);
-      if (res.error) {
-        throw new RequestError(res.error);
-      }
-      debug("← %o (%oms)", method, Date.now() - sentAt);
-      return res.result;
-    } catch (err) {
-      debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, err.message);
-      throw err;
-    }
-  }
-
-  sendResult<T>(
-    cid: number,
-    rc: ResultCreator<T>,
-    id: number,
-    result?: T,
-    error?: RpcError,
-  ) {
-    const obj = rc(id, result, error);
-    if (typeof obj.id !== "number") {
-      throw new Error(`missing id in result ${JSON.stringify(obj)}`);
-    }
-
-    this.transport.post("@Reply", { cid, payload: obj }).catch(e => {
-      this.warn(`could not send result for ${obj.id}: ${e.stack}`);
-    });
-  }
-
-  private async handleMessage(rmJSON: any) {
-    let rm: any = JSON.parse(rmJSON);
-    if (!rm.cid) {
-      throw new Error(`rm missing cid, ignoring`);
-    }
-
-    if (!rm.payload) {
-      throw new Error(`rm missing payload, ignoring`);
-    }
-
-    const { cid, payload } = rm;
+  private async handleMessage(payloadJSON: any) {
+    let payload: any = JSON.parse(payloadJSON);
 
     if (typeof payload !== "object") {
-      this.sendResult(cid, genericResult, null, null, <RpcError>{
-        code: StandardErrorCode.InvalidRequest,
-        message: `expected object, got ${typeof payload}`,
-      });
       return;
     }
 
     if (payload.jsonrpc != "2.0") {
-      this.sendResult(cid, genericResult, null, null, <RpcError>{
-        code: StandardErrorCode.InvalidRequest,
-        message: `expected jsonrpc = '2.0', got ${JSON.stringify(
-          payload.jsonrpc,
-        )}`,
-      });
       return;
     }
 
-    if (typeof payload.id !== "number") {
+    if (typeof payload.id === "undefined") {
       // we got a notification!
       const handler = this.notificationHandlers[payload.method];
       if (!handler) {
-        this.warn(`no handler for notification ${payload.method}`);
+        this.client.warn(`no handler for notification ${payload.method}`);
         return;
       }
 
-      let retval: any;
       try {
-        retval = handler(payload);
+        await Promise.resolve(handler(payload));
       } catch (e) {
-        this.warn(`notification handler error: ${e.stack}`);
-        if (this.errorHandler) {
-          this.errorHandler(e);
+        this.client.warn(`notification handler error: ${e.stack}`);
+        if (this.client.errorHandler) {
+          this.client.errorHandler(e);
         }
       }
-
-      Promise.resolve(retval).catch(e => {
-        this.warn(`notification handler async error: ${e.stack}`);
-        if (this.errorHandler) {
-          this.errorHandler(e);
-        }
-      });
 
       return;
     }
 
     if (payload.method) {
       debug("⇐ %o", payload.method);
+
       let receivedAt = Date.now();
       const handler = this.requestHandlers[payload.method];
       if (!handler) {
-        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
+        this.sendResult(genericResult, payload.id, null, <RpcError>{
           code: StandardErrorCode.MethodNotFound,
           message: `no handler is registered for method ${payload.method}`,
         });
@@ -266,7 +264,7 @@ export class Client {
       try {
         retval = handler(payload);
       } catch (e) {
-        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
+        this.sendResult(genericResult, payload.id, null, <RpcError>{
           code: StandardErrorCode.InternalError,
           message: `sync error: ${e.message}`,
           data: {
@@ -279,9 +277,9 @@ export class Client {
       try {
         const result = await Promise.resolve(retval);
         debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
-        this.sendResult(cid, genericResult, payload.id, result, null);
+        this.sendResult(genericResult, payload.id, result, null);
       } catch (e) {
-        this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
+        this.sendResult(genericResult, payload.id, null, <RpcError>{
           code: StandardErrorCode.InternalError,
           message: `async error: ${e.message}`,
           data: {
@@ -289,13 +287,42 @@ export class Client {
           },
         });
       }
-
       return;
     }
 
-    this.sendResult(cid, genericResult, payload.id, null, <RpcError>{
+    this.sendResult(genericResult, payload.id, null, <RpcError>{
       code: StandardErrorCode.InvalidRequest,
       message: "has id but doesn't have method, result, or error",
     });
+  }
+
+  sendResult<T>(
+    rc: ResultCreator<T>,
+    id: number,
+    result?: T,
+    error?: RpcError,
+  ) {
+    const obj = rc(id, result, error);
+    if (typeof obj.id !== "number") {
+      throw new Error(`missing id in result ${JSON.stringify(obj)}`);
+    }
+
+    this.client.transport
+      .post({
+        path: "/reply",
+        payload: obj,
+        headers: {
+          "x-cid": `${this.cid}`,
+        },
+      })
+      .catch(e => {
+        this.client.warn(`could not send result for ${obj.id}: ${e.stack}`);
+      });
+  }
+
+  close() {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
   }
 }

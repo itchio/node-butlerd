@@ -6,13 +6,17 @@
   "browser": {
     "index.js": "browser.js"
   },
+  "electron-main": {
+    "index.js": "electron.js"
+  },
   "types": "lib/index.d.ts",
   "scripts": {
     "prepare": "npm run compile",
     "precompile": "tsc",
     "compile": "tsc && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
-    "test": "npm run precompile && npm run tape",
-    "tape": "node lib/tests/index.js"
+    "test": "npm run precompile && npm run electron-test && npm run node-test",
+    "electron-test": "electron lib/tests/index.js",
+    "node-test": "node lib/tests/index.js"
   },
   "repository": {
     "type": "git",
@@ -45,6 +49,7 @@
     "babel-plugin-transform-async-to-module-method": "^6.24.1",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "cross-env": "^5.1.4",
+    "electron": "^2.0.4",
     "prettier": "^1.7.4",
     "rimraf": "^2.6.2",
     "rollup": "^0.62.0",
@@ -52,8 +57,8 @@
     "which": "^1.3.0"
   },
   "dependencies": {
-    "crypto-random-string": "^1.0.0",
     "debug": "^3.1.0",
+    "electron-fetch": "^1.1.0",
     "eventsource": "^1.0.5",
     "node-fetch": "^2.1.2",
     "split2": "^2.2.0"

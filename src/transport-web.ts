@@ -1,12 +1,12 @@
 import { Transport } from "./transport";
 import { GenericTransport } from "./transport-generic";
+import { Endpoint } from "./support";
 
-export function newWebTransport(): Transport {
-  return new GenericTransport({
+export function newWebTransport(endpoint: Endpoint): Transport {
+  return new GenericTransport(endpoint, {
     EventSource: (window as any).EventSource,
-    getEventSourceOpts: () => null,
-    // see https://github.com/orbitjs/orbit/issues/452
-    fetch: window.fetch.bind(window) as any /* woooo */,
-    getFetchOpts: () => null,
+    eventSourceOpts: null,
+    fetch: window.fetch as any,
+    fetchOpts: null,
   });
 }

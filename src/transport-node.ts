@@ -4,33 +4,18 @@ import EventSource = require("eventsource");
 import fetch = require("node-fetch");
 import { Endpoint } from "./support";
 import { Agent } from "https";
-import { FetchOpts } from "./transport-types";
 
-export function newNodeTransport(): Transport {
-  const fetchOptsCache = new WeakMap<Endpoint, Partial<FetchOpts>>();
-  const getFetchOpts = (endpoint: Endpoint): Partial<FetchOpts> => {
-    const cached = fetchOptsCache.get(endpoint);
-    if (cached) {
-      return cached;
-    }
-    const agent = new Agent({
-      ca: endpoint.cert,
-    });
-    const opts = { agent };
-    fetchOptsCache.set(endpoint, opts);
-    return opts;
-  };
+export function newNodeTransport(endpoint: Endpoint): Transport {
+  const ca = Buffer.from(endpoint.https.ca, "base64");
 
-  return new GenericTransport({
+  const agent = new Agent({ ca });
+
+  return new GenericTransport(endpoint, {
     EventSource,
-    getEventSourceOpts: (endpoint: Endpoint) => {
-      return {
-        https: {
-          ca: endpoint.cert,
-        },
-      };
+    eventSourceOpts: {
+      https: { ca },
     },
     fetch: fetch as any /* woo */,
-    getFetchOpts,
+    fetchOpts: { agent },
   });
 }

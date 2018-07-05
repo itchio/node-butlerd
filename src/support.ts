@@ -15,9 +15,14 @@ export enum CreatorKind {
 }
 
 export interface Endpoint {
-  address: string;
   secret: string;
-  cert: string;
+  http: {
+    address: string;
+  };
+  https: {
+    address: string;
+    ca: string;
+  };
 }
 
 export type Creator = {
