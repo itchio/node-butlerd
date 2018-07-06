@@ -3,12 +3,8 @@
   "version": "8.0.2",
   "description": "Node.js library for butlerd, the butler daemon",
   "main": "index.js",
-  "browser": {
-    "index.js": "browser.js"
-  },
-  "electron-main": {
-    "index.js": "electron-main.js"
-  },
+  "browser": "./browser.js",
+  "electron-main": "./electron-main.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "prepare": "npm run compile",
