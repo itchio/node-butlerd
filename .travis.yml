@@ -3,7 +3,7 @@ node_js:
     - "8"
 
 script:
-    - wget https://broth.itch.ovh/butler/linux-amd64/LATEST/.zip -O butler.zip --progress=dot
+    - wget https://broth.itch.ovh/butler/linux-amd64-head/LATEST/.zip -O butler.zip --progress=dot
     - unzip butler.zip
     - chmod +x butler
     - export PATH="$PATH:$PWD"
