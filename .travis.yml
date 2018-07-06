@@ -1,6 +1,6 @@
 language: node_js
 node_js:
-    - "8"
+    - "10"
 
 script:
     - wget https://broth.itch.ovh/butler/linux-amd64-head/LATEST/.zip -O butler.zip --progress=dot
@@ -11,3 +11,4 @@ script:
     - export DEBUG="butlerd:*"
     - npm run precompile
     - npm run node-test
+    - xvfb-run npm run electron-test
