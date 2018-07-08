@@ -136,6 +136,7 @@ export class Client {
       throw err;
     } finally {
       if (conversation) {
+        conversation.markComplete();
         conversation.close();
       }
     }
@@ -143,6 +144,8 @@ export class Client {
 }
 
 export class Conversation {
+  private complete: boolean;
+  private closed: boolean;
   private notificationHandlers: NotificationHandlers = {};
   private requestHandlers: RequestHandlers = {};
   private client: Client;
@@ -152,6 +155,7 @@ export class Conversation {
   constructor(cid: number, client: Client) {
     this.cid = cid;
     this.client = client;
+    this.closed = false;
   }
 
   async connect() {
@@ -320,9 +324,37 @@ export class Conversation {
       });
   }
 
+  markComplete() {
+    this.complete = true;
+  }
+
+  async cancel() {
+    const path = `cancel`;
+    await this.client.transport.post({
+      path,
+      payload: {},
+      headers: {
+        "x-cid": `${this.cid}`,
+      },
+    });
+  }
+
   close() {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+
     if (this.eventSource) {
       this.eventSource.close();
+    }
+
+    if (!this.complete) {
+      this.cancel().catch(e => {
+        this.client.warn(
+          `Could not cancel conversation ${this.cid}: ${e.stack || e}`,
+        );
+      });
     }
   }
 }
