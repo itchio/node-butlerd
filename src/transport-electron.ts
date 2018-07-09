@@ -1,7 +1,7 @@
 var debug = require("debug")("butlerd:transport-electron");
 import { Transport } from "./transport";
 import { GenericTransport } from "./transport-generic";
-import fetch = require("electron-fetch");
+import fetch from "electron-fetch";
 import { session, CertificateVerifyProcRequest } from "electron";
 import { Endpoint } from "./support";
 import { EventSourceElectron } from "./eventsource-electron";
