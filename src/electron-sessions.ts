@@ -8,7 +8,9 @@ export type RegisterCallback = (session: any) => void;
  */
 export function registerElectronSession(session: any) {
   registeredSessions.push(session);
-  onRegister(session);
+  if (onRegister) {
+    onRegister(session);
+  }
 }
 
 export function onRegisterElectronSession(cb: RegisterCallback) {
