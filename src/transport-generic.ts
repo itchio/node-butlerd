@@ -95,7 +95,7 @@ export class GenericTransport implements Transport {
   }
 
   makeURL(path: string) {
-    const { address } = this.endpoint.https;
-    return `https://${address}/${path}`;
+    const { address } = this.endpoint.http;
+    return `http://${address}/${path}`;
   }
 }
