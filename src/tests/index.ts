@@ -60,16 +60,21 @@ async function cancelTests() {
   console.log(`Running cancel tests...`);
   let s = new Instance(butlerOpts());
   const client = new TestedClient(await s.getEndpoint());
-  s.cancel();
+  await s.cancel();
   let rejected = false;
+  console.log(`Firing client.call`);
   client
     .call(messages.VersionGet, {})
-    .then(() => {})
+    .then(result => {
+      console.log(`VersionGet resolved`, result);
+    })
     .catch(() => {
+      console.log(`VersionGet rejected`);
       rejected = true;
     });
+  console.log(`Waiting two seconds...`);
   await new Promise((resolve, reject) => {
-    setTimeout(resolve, 1000);
+    setTimeout(resolve, 2000);
   });
   assertEqual(s.cancelled, true, "instance was cancelled");
   assertEqual(rejected, true, "version.get call was rejected");

@@ -14,7 +14,7 @@ import {
   StandardErrorCode,
   createResult,
 } from "./support";
-import { Transport } from "./transport";
+import { Transport, PostOptions, AbortFunc } from "./transport";
 import { EventSourceInstance } from "./transport-types";
 
 var debug = require("debug")("butlerd:client");
@@ -104,9 +104,8 @@ export class Client {
 
     let sentAt = Date.now();
 
-    let headers = {
+    let headers: { [key: string]: string } = {
       "x-id": `${obj.id}`,
-      "x-cid": undefined,
     };
     let conversation: Conversation;
 
@@ -121,11 +120,15 @@ export class Client {
       }
 
       const path = `call/${obj.method}`;
-      const res = await this.transport.post({
+      let postOpts: PostOptions = {
         path,
         payload: obj.params,
         headers,
-      });
+      };
+      if (setup) {
+        postOpts.registerAbort = abort => conversation._registerAbort(abort);
+      }
+      const res = await this.transport.post(postOpts);
       if (res.error) {
         throw new RequestError(res.error);
       }
@@ -144,6 +147,7 @@ export class Client {
 }
 
 export class Conversation {
+  private abort: AbortFunc;
   private complete: boolean;
   private closed: boolean;
   private notificationHandlers: NotificationHandlers = {};
@@ -329,14 +333,20 @@ export class Conversation {
   }
 
   async cancel() {
-    const path = `cancel`;
-    await this.client.transport.post({
-      path,
-      payload: {},
-      headers: {
-        "x-cid": `${this.cid}`,
-      },
-    });
+    if (this.abort) {
+      debug(`Cancelling convo ${this.cid} by aborting HTTP request`);
+      this.abort();
+    } else {
+      debug(`Cancelling convo ${this.cid} by POST-ing`);
+      const path = `cancel`;
+      await this.client.transport.post({
+        path,
+        payload: {},
+        headers: {
+          "x-cid": `${this.cid}`,
+        },
+      });
+    }
   }
 
   close() {
@@ -356,5 +366,12 @@ export class Conversation {
         );
       });
     }
+  }
+
+  /**
+   * Used internally, don't call outside of node-butlerd!
+   */
+  _registerAbort(abort: AbortFunc) {
+    this.abort = abort;
   }
 }

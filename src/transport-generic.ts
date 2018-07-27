@@ -1,10 +1,10 @@
 var debug = require("debug")("butlerd:transport-generic");
 import { Endpoint } from "./support";
 import {
-  Transport,
   TransportMessageListener,
   TransportErrorListener,
   PostOptions,
+  BaseTransport,
 } from "./transport";
 
 import {
@@ -22,14 +22,12 @@ export interface TransportImplementations {
   eventSourceOpts: Partial<EventSourceOpts> | null;
 }
 
-export class GenericTransport implements Transport {
-  private endpoint: Endpoint;
-
+export class GenericTransport extends BaseTransport {
   private impls: TransportImplementations;
   private fetch: FetchImpl;
 
   constructor(endpoint: Endpoint, impls: TransportImplementations) {
-    this.endpoint = endpoint;
+    super(endpoint);
     this.impls = impls;
     // weird workaround - if we don't do that we end up
     // with 'Illegal invocation of fetch, cannot call on Window'
@@ -48,7 +46,6 @@ export class GenericTransport implements Transport {
       debug(`GET ${url}`);
       let source = new this.impls.EventSource(url, this.impls.eventSourceOpts);
       source.onmessage = ev => {
-        debug(`SSE message: ${(ev as any).data}`);
         onMessage((ev as any).data);
       };
 
@@ -56,7 +53,6 @@ export class GenericTransport implements Transport {
         const err = new Error(
           `EventSource error: ${JSON.stringify(ev, null, 2)}`,
         );
-        debug(`SSE error: ${err.stack}`);
         reject(err);
         onError(err);
       };
@@ -92,10 +88,5 @@ export class GenericTransport implements Transport {
       default:
         throw new Error(`Got HTTP ${res.status}: ${await res.text()}`);
     }
-  }
-
-  makeURL(path: string) {
-    const { address } = this.endpoint.http;
-    return `http://${address}/${path}`;
   }
 }
