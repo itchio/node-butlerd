@@ -14,17 +14,10 @@ import {
   StandardErrorCode,
   createResult,
 } from "./support";
-import { Transport, PostOptions } from "./transport";
+import { Transport } from "./transport";
 import { Request, Feed } from "./transport-types";
 
 var debug = require("debug")("butlerd:client");
-
-interface ResultPromises {
-  [key: number]: {
-    resolve: (payload: any) => void;
-    reject: (e: Error) => void;
-  };
-}
 
 interface RequestHandlers {
   [method: string]: RequestHandler<any, any>;
@@ -79,10 +72,6 @@ export class Client {
 
   onWarning(handler: WarningHandler) {
     this.warningHandler = handler;
-  }
-
-  notify<T>(nc: NotificationCreator<T>, params?: T) {
-    const obj = nc(params);
   }
 
   async call<T, U>(

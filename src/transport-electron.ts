@@ -1,4 +1,3 @@
-var debug = require("debug")("butlerd:transport-electron");
 import { Transport, PostOptions, BaseTransport } from "./transport";
 import { net, session, CertificateVerifyProcRequest, Session } from "electron";
 import { Endpoint } from "./support";
@@ -10,36 +9,16 @@ import { Feed, FeedOpts, Request } from "./transport-types";
 import { parse } from "url";
 import { SSEParser } from "./eventsource-utils";
 
-const partition = "__node-butlerd__";
+const debug = require("debug")("butlerd:transport-electron");
 
-export function newElectronTransport(endpoint: Endpoint): Transport {
-  debug(`New transport for endpoint ${endpoint.https.address}`);
-  const ca = Buffer.from(endpoint.https.ca, "base64");
-  const customSession = session.fromPartition(partition);
-  const verifyProc = (
-    req: CertificateVerifyProcRequest,
-    cb: (verificationResult: number) => void,
-  ) => {
-    if (req.certificate.data == ca.toString("utf8")) {
-      debug(`Trusting self-signed certificate for ${req.hostname}`);
-      cb(0);
-      return;
-    }
-
-    cb(-3);
-    return;
-  };
-  customSession.setCertificateVerifyProc(verifyProc);
-  for (const registeredSession of getRegisteredElectronSessions()) {
-    registeredSession.setCertificateVerifyProc(verifyProc);
-  }
-  onRegisterElectronSession(registeredSession => {
-    registeredSession.setCertificateVerifyProc(verifyProc);
-  });
-
-  return new ElectronTransport(endpoint, customSession);
-}
-
+/**
+ * A transport for Electron. Uses the 'net' module so we use
+ * Chromium's network stack. Meant for the 'main' process.
+ * 
+ * Note: this transport is hard-coded to use the HTTP endpoint,
+ * not the HTTPS one, because of this:
+ * https://github.com/itchio/itch/issues/1979
+ */
 class ElectronTransport extends BaseTransport {
   private session: Session;
 
@@ -62,6 +41,9 @@ class ElectronTransport extends BaseTransport {
 
     let close = (err?: Error) => {
       if (!closed) {
+        if (err) {
+          callbacks.onError(err);
+        }
         closed = true;
         req.abort();
       }
@@ -92,7 +74,7 @@ class ElectronTransport extends BaseTransport {
           parser.pushData(String(chunk));
         });
         res.on("end", () => {
-          const err = new Error("Feed ended");
+          const err = new Error("Feed closed by server");
           close(err);
         });
       });
@@ -111,9 +93,7 @@ class ElectronTransport extends BaseTransport {
         await p;
       },
       close: () => {
-        if (!closed) {
-          req.abort();
-        }
+        close();
       },
     };
   }
@@ -166,4 +146,34 @@ class ElectronTransport extends BaseTransport {
       },
     };
   }
+}
+
+const partition = "__node-butlerd__";
+
+export function newElectronTransport(endpoint: Endpoint): Transport {
+  debug(`New transport for endpoint ${endpoint.http.address}`);
+  const ca = Buffer.from(endpoint.https.ca, "base64");
+  const customSession = session.fromPartition(partition);
+  const verifyProc = (
+    req: CertificateVerifyProcRequest,
+    cb: (verificationResult: number) => void,
+  ) => {
+    if (req.certificate.data == ca.toString("utf8")) {
+      debug(`Trusting self-signed certificate for ${req.hostname}`);
+      cb(0);
+      return;
+    }
+
+    cb(-3);
+    return;
+  };
+  customSession.setCertificateVerifyProc(verifyProc);
+  for (const registeredSession of getRegisteredElectronSessions()) {
+    registeredSession.setCertificateVerifyProc(verifyProc);
+  }
+  onRegisterElectronSession(registeredSession => {
+    registeredSession.setCertificateVerifyProc(verifyProc);
+  });
+
+  return new ElectronTransport(endpoint, customSession);
 }
