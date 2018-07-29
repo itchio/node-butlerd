@@ -43,6 +43,7 @@ export class BaseTransport {
     const { secret } = this.endpoint;
     return {
       accept: "application/json",
+      connection: "close",
       "content-type": "application/json",
       "cache-control": "no-cache",
       "x-secret": secret,
@@ -53,6 +54,7 @@ export class BaseTransport {
   feedHeaders(): any {
     return {
       accept: "text/event-stream",
+      connection: "close",
       "cache-control": "no-cache",
     };
   }
