@@ -14,8 +14,8 @@ import {
   StandardErrorCode,
   createResult,
 } from "./support";
-import { Transport, PostOptions, AbortFunc } from "./transport";
-import { EventSourceInstance } from "./transport-types";
+import { Transport, PostOptions } from "./transport";
+import { Request, Feed } from "./transport-types";
 
 var debug = require("debug")("butlerd:client");
 
@@ -120,15 +120,16 @@ export class Client {
       }
 
       const path = `call/${obj.method}`;
-      let postOpts: PostOptions = {
+      const req = this.transport.post({
         path,
         payload: obj.params,
         headers,
-      };
-      if (setup) {
-        postOpts.registerAbort = abort => conversation._registerAbort(abort);
+      });
+      if (conversation) {
+        conversation.req = req;
       }
-      const res = await this.transport.post(postOpts);
+
+      const res = await req.do();
       if (res.error) {
         throw new RequestError(res.error);
       }
@@ -147,14 +148,14 @@ export class Client {
 }
 
 export class Conversation {
-  private abort: AbortFunc;
   private complete: boolean;
   private closed: boolean;
   private notificationHandlers: NotificationHandlers = {};
   private requestHandlers: RequestHandlers = {};
   private client: Client;
   private cid: number;
-  private eventSource: EventSourceInstance;
+  private feed: Feed;
+  public req: Request;
 
   constructor(cid: number, client: Client) {
     this.cid = cid;
@@ -163,11 +164,10 @@ export class Conversation {
   }
 
   async connect() {
-    this.eventSource = await this.client.transport.makeEventSource(
-      this.cid,
-      this.onMessage,
-      this.onError,
-    );
+    this.feed = this.client.transport.makeFeed(this.cid);
+
+    const { onMessage, onError } = this;
+    await this.feed.connect({ onMessage, onError });
   }
 
   onMessage = (payloadJSON: string) => {
@@ -315,17 +315,17 @@ export class Conversation {
       throw new Error(`missing id in result ${JSON.stringify(obj)}`);
     }
 
-    this.client.transport
-      .post({
-        path: "reply",
-        payload: obj,
-        headers: {
-          "x-cid": `${this.cid}`,
-        },
-      })
-      .catch(e => {
-        this.client.warn(`could not send result for ${obj.id}: ${e.stack}`);
-      });
+    const req = this.client.transport.post({
+      path: "reply",
+      payload: obj,
+      headers: {
+        "x-cid": `${this.cid}`,
+      },
+    });
+
+    req.do().catch(e => {
+      this.client.warn(`could not send result for ${obj.id}: ${e.stack}`);
+    });
   }
 
   markComplete() {
@@ -333,9 +333,9 @@ export class Conversation {
   }
 
   async cancel() {
-    if (this.abort) {
+    if (this.req) {
       debug(`Cancelling convo ${this.cid} by aborting HTTP request`);
-      this.abort();
+      this.req.close();
     } else {
       debug(`Cancelling convo ${this.cid} by POST-ing`);
       const path = `cancel`;
@@ -353,10 +353,10 @@ export class Conversation {
     if (this.closed) {
       return;
     }
-    this.closed = true;
 
-    if (this.eventSource) {
-      this.eventSource.close();
+    this.closed = true;
+    if (this.feed) {
+      this.feed.close();
     }
 
     if (!this.complete) {
@@ -366,12 +366,5 @@ export class Conversation {
         );
       });
     }
-  }
-
-  /**
-   * Used internally, don't call outside of node-butlerd!
-   */
-  _registerAbort(abort: AbortFunc) {
-    this.abort = abort;
   }
 }

@@ -85,7 +85,7 @@ async function normalTests() {
   let s = new Instance(butlerOpts());
 
   const client = new TestedClient(await s.getEndpoint());
-  await testClient(s, client);
+  await testClient(client);
   s.cancel();
   await s.promise();
 }
@@ -96,14 +96,15 @@ function assertEqual(actual: any, expected: any, msg: string) {
   }
 }
 
-async function testClient(s: Instance, client: Client) {
-  const endpoint = await s.getEndpoint();
-
+async function testClient(client: Client) {
   const versionResult = await client.call(messages.VersionGet, {});
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
   const input = 256;
 
+  let numProgress = 0;
+  let lastProgress = 0;
+  let inOrder = true;
   const dtres = await client.call(
     messages.TestDoubleTwice,
     {
@@ -112,6 +113,12 @@ async function testClient(s: Instance, client: Client) {
     conv => {
       conv.on(messages.Progress, async progress => {
         console.log(`<(._.)> ${JSON.stringify(progress)}`);
+        numProgress++;
+        if (progress.progress > lastProgress) {
+          console.log(`Getting progress in-order so far...`);
+        } else {
+          inOrder = false;
+        }
       });
       conv.on(messages.TestDouble, async ({ number }) => {
         return { number: number * 2 };
@@ -120,6 +127,8 @@ async function testClient(s: Instance, client: Client) {
   );
 
   assertEqual(dtres.number, input * 4, "number was doubled twice");
+  assertEqual(numProgress, 3, "received 3 progress notifications");
+  assertEqual(inOrder, true, "received progress notifications in order");
 }
 
 process.on("unhandledRejection", e => {

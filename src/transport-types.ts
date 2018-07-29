@@ -1,52 +1,43 @@
-//=========================
-// EventSource
-//=========================
-
-export interface EventSourceImpl {
-  new (url: string, opts?: EventSourceOpts): EventSourceInstance;
+export interface FeedOpts {
+  onMessage: (payloadJSON: string) => void;
+  onError: (err: Error) => void;
 }
 
-export interface EventSourceOpts {
-  // node-only
-  https?: {
-    ca?: any;
-  };
+/**
+ * Think 'EventSource', but only the stuff we need.
+ * So: no custom event types, no auto reconnect, just
+ * messages.
+ */
+export interface Feed {
+  /**
+   * Waits for the feed connection to be established,
+   * (ie. for the server to reply with headers, not
+   * for the complete response) rejects if timeout.
+   */
+  connect(opts: FeedOpts): Promise<void>;
 
-  // electron-only
-  session?: any;
+  /**
+   * Closes the feed connection no matter the state.
+   */
+  close();
 }
 
-export interface EventSourceInstance {
-  onmessage: EventListener;
-  onerror: EventListener;
-  onopen: EventListener;
-  close(): void;
-}
+/**
+ * An HTTP request, already in-flight by the time
+ * the constructor returns.
+ */
+export interface Request {
+  /**
+   * Waits for full HTTP response.
+   * 
+   * Returns null if 204
+   * Returns a JSON object if 200
+   * Rejects if anything else
+   */
+  do(): Promise<any>;
 
-//=========================
-// fetch
-//=========================
-
-export interface FetchOpts {
-  method: "POST";
-  headers?: {
-    [key: string]: string;
-  };
-  body?: string;
-
-  // node-only
-  agent?: any; // of type require("https").Agent
-
-  // electron-only
-  session?: any; // of type require("electron").session.Session
-}
-
-export interface FetchImpl {
-  (url: string, opts: FetchOpts): Promise<FetchResponse>;
-}
-
-export interface FetchResponse {
-  status?: number;
-  json(): Promise<any>;
-  text(): Promise<any>;
+  /**
+   * Aborts the HTTP request at any stage.
+   */
+  close();
 }

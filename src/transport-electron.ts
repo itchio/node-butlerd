@@ -1,26 +1,14 @@
 var debug = require("debug")("butlerd:transport-electron");
-import {
-  Transport,
-  TransportMessageListener,
-  TransportErrorListener,
-  PostOptions,
-  BaseTransport,
-} from "./transport";
-import {
-  net,
-  session,
-  CertificateVerifyProcRequest,
-  Session,
-  Net,
-} from "electron";
+import { Transport, PostOptions, BaseTransport } from "./transport";
+import { net, session, CertificateVerifyProcRequest, Session } from "electron";
 import { Endpoint } from "./support";
 import {
   getRegisteredElectronSessions,
   onRegisterElectronSession,
 } from "./electron-sessions";
-import { EventSourceInstance } from "./transport-types";
-import { EventSourceElectron } from "./eventsource-electron";
-import { parse, resolve } from "url";
+import { Feed, FeedOpts, Request } from "./transport-types";
+import { parse } from "url";
+import { SSEParser } from "./eventsource-utils";
 
 const partition = "__node-butlerd__";
 
@@ -60,55 +48,84 @@ class ElectronTransport extends BaseTransport {
     this.session = session;
   }
 
-  async makeEventSource(
-    cid: number,
-    onMessage: TransportMessageListener,
-    onError: TransportErrorListener,
-  ): Promise<EventSourceInstance> {
-    const p = new Promise<EventSourceInstance>((resolve, reject) => {
-      const url = this.makeURL(
-        `feed?secret=${this.endpoint.secret}&cid=${cid}`,
-      );
-      debug(`GET ${url}`);
-      let source = new EventSourceElectron(url, { session: this.session });
-      source.onmessage = ev => {
-        debug(`SSE message: ${(ev as any).data}`);
-        onMessage((ev as any).data);
-      };
+  makeFeed(cid: number): Feed {
+    const url = this.makeFeedURL(cid);
 
-      source.onerror = ev => {
-        const err = new Error(
-          `EventSource error: ${JSON.stringify(ev, null, 2)}`,
-        );
+    let options = parse(url) as any;
+    options.headers = this.feedHeaders();
+    options.method = "GET";
+    options.session = this.session;
+    const req = net.request(options);
+
+    let callbacks: FeedOpts;
+    let closed = false;
+
+    let close = (err?: Error) => {
+      if (!closed) {
+        closed = true;
+        req.abort();
+      }
+    };
+
+    const p = new Promise((resolve, reject) => {
+      req.on("error", err => {
+        close(err);
         reject(err);
-        onError(err);
-      };
+      });
+      req.on("abort", () => {
+        const err = new Error("Feed aborted");
+        close(err);
+        reject(err);
+      });
+      req.on("response", res => {
+        if (res.statusCode !== 200) {
+          const err = new Error(`Got HTTP ${res.statusCode} for feed`);
+          close(err);
+          reject(err);
+          return;
+        }
 
-      source.onopen = ev => {
-        resolve(source);
-      };
+        resolve();
+
+        const parser = new SSEParser(callbacks.onMessage);
+        res.on("data", (chunk: Buffer) => {
+          parser.pushData(String(chunk));
+        });
+        res.on("end", () => {
+          const err = new Error("Feed ended");
+          close(err);
+        });
+      });
     });
-    return await p;
+
+    return {
+      connect: async (opts: FeedOpts) => {
+        if (!opts.onMessage) {
+          throw new Error(`Missing 'onMessage' in Feed.connect()`);
+        }
+        if (!opts.onError) {
+          throw new Error(`Missing 'onError' in Feed.connect()`);
+        }
+        callbacks = opts;
+        req.end();
+        await p;
+      },
+      close: () => {
+        if (!closed) {
+          req.abort();
+        }
+      },
+    };
   }
 
-  async post(opts: PostOptions) {
+  post(opts: PostOptions): Request {
     const url = this.makeURL(opts.path);
-    debug(`POST ${url}`);
     let options = parse(url) as any;
-    options.headers = {
-      accept: "application/json",
-      "content-type": "application/json",
-      "cache-control": "no-cache",
-      "x-secret": this.endpoint.secret,
-      ...opts.headers,
-    };
+    options.headers = this.postHeaders(opts);
     options.method = "POST";
     options.session = this.session;
 
     const req = net.request(options);
-    if (opts.registerAbort) {
-      opts.registerAbort(() => req.abort());
-    }
 
     const p = new Promise<any>((resolve, reject) => {
       req.on("error", err => {
@@ -120,7 +137,6 @@ class ElectronTransport extends BaseTransport {
       req.on("response", res => {
         let text = "";
         res.on("data", data => {
-          // TODO: use Buffer instead
           text += String(data);
         });
         res.on("end", () => {
@@ -140,6 +156,14 @@ class ElectronTransport extends BaseTransport {
       });
     });
     req.end(JSON.stringify(opts.payload));
-    return await p;
+
+    return {
+      do: async () => {
+        return await p;
+      },
+      close: () => {
+        req.abort();
+      },
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { EventSourceInstance } from "./transport-types";
+import { Feed, Request } from "./transport-types";
 import { Endpoint } from "./support";
 
 export interface TransportMessageListener {
@@ -9,24 +9,17 @@ export interface TransportErrorListener {
   (err: Error): void;
 }
 
-export type AbortFunc = () => void;
-
 export interface PostOptions {
   path: string;
   headers: {
     [key: string]: string;
   };
   payload: Object;
-  registerAbort?: (af: AbortFunc) => void;
 }
 
 export interface Transport {
-  post(opts: PostOptions): Promise<any>;
-  makeEventSource(
-    cid: number,
-    onMessage: TransportMessageListener,
-    onError: TransportErrorListener,
-  ): Promise<EventSourceInstance>;
+  post(opts: PostOptions): Request;
+  makeFeed(cid: number): Feed;
 }
 
 export class BaseTransport {
@@ -39,5 +32,28 @@ export class BaseTransport {
   makeURL(path: string) {
     const { address } = this.endpoint.http;
     return `http://${address}/${path}`;
+  }
+
+  makeFeedURL(cid: number) {
+    const { secret } = this.endpoint;
+    return this.makeURL(`feed?secret=${secret}&cid=${cid}`);
+  }
+
+  postHeaders(opts: PostOptions): any {
+    const { secret } = this.endpoint;
+    return {
+      accept: "application/json",
+      "content-type": "application/json",
+      "cache-control": "no-cache",
+      "x-secret": secret,
+      ...opts.headers,
+    };
+  }
+
+  feedHeaders(): any {
+    return {
+      accept: "text/event-stream",
+      "cache-control": "no-cache",
+    };
   }
 }
