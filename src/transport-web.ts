@@ -91,7 +91,7 @@ class WebTransport extends BaseTransport {
 
     return {
       do: async () => {
-        req.send();
+        req.send(JSON.stringify(opts.payload));
         return await p;
       },
       close: () => {
