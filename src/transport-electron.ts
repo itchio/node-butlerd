@@ -108,6 +108,7 @@ class ElectronTransport extends BaseTransport {
     options.headers = this.postHeaders(opts);
     options.method = "POST";
     options.session = this.session;
+    debug(`POST ${url}, payload = %o`, opts.payload);
 
     const req = net.request(options);
 
@@ -125,6 +126,9 @@ class ElectronTransport extends BaseTransport {
         });
         res.on("aborted", () => {
           reject(new Error(`Request aborted`));
+        });
+        res.on("error", err => {
+          reject(err);
         });
         res.on("end", () => {
           if (res.statusCode === 200) {

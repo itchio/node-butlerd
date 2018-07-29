@@ -63,6 +63,9 @@ class NodeTransport extends BaseTransport {
           const err = new Error("Feed aborted");
           close(err);
         });
+        res.on("error", err => {
+          reject(err);
+        });
         res.on("data", (chunk: Buffer) => {
           parser.pushData(String(chunk));
         });
