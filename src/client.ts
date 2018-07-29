@@ -129,7 +129,6 @@ export class Client {
       throw err;
     } finally {
       if (conversation) {
-        conversation.markComplete();
         conversation.close();
       }
     }
@@ -137,22 +136,27 @@ export class Client {
 }
 
 export class Conversation {
-  private complete: boolean;
-  private closed: boolean;
+  private cancelled: boolean = false;
+  private closed: boolean = false;
   private notificationHandlers: NotificationHandlers = {};
   private requestHandlers: RequestHandlers = {};
   private client: Client;
   private cid: number;
   private feed: Feed;
+  private inFlightRequests: {
+    [key: number]: boolean;
+  } = {};
   public req: Request;
 
   constructor(cid: number, client: Client) {
     this.cid = cid;
     this.client = client;
-    this.closed = false;
   }
 
   async connect() {
+    if (this.cancelled) {
+      throw new Error(`Conversation cancelled`);
+    }
     this.feed = this.client.transport.makeFeed(this.cid);
 
     const { onMessage, onError } = this;
@@ -214,6 +218,10 @@ export class Conversation {
   }
 
   private async handleMessage(payloadJSON: any) {
+    if (this.cancelled) {
+      return;
+    }
+
     let payload: any = JSON.parse(payloadJSON);
 
     if (typeof payload !== "object") {
@@ -247,46 +255,67 @@ export class Conversation {
     if (payload.method) {
       debug("⇐ %o", payload.method);
 
-      let receivedAt = Date.now();
-      const handler = this.requestHandlers[payload.method];
-      if (!handler) {
-        this.sendResult(genericResult, payload.id, null, <RpcError>{
-          code: StandardErrorCode.MethodNotFound,
-          message: `no handler is registered for method ${payload.method}`,
-        });
-        return;
-      }
-
-      let retval: any;
       try {
-        retval = handler(payload);
-      } catch (e) {
-        this.sendResult(genericResult, payload.id, null, <RpcError>{
-          code: StandardErrorCode.InternalError,
-          message: `sync error: ${e.message}`,
-          data: {
-            stack: e.stack,
-          },
-        });
-        return;
-      }
+        this.inFlightRequests[payload.id] = true;
 
-      try {
-        const result = await Promise.resolve(retval);
-        debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
-        this.sendResult(genericResult, payload.id, result, null);
-      } catch (e) {
-        this.sendResult(genericResult, payload.id, null, <RpcError>{
-          code: StandardErrorCode.InternalError,
-          message: `async error: ${e.message}`,
-          data: {
-            stack: e.stack,
-          },
-        });
+        let receivedAt = Date.now();
+        const handler = this.requestHandlers[payload.method];
+        if (!handler) {
+          if (this.cancelled) {
+            return;
+          }
+          this.sendResult(genericResult, payload.id, null, <RpcError>{
+            code: StandardErrorCode.MethodNotFound,
+            message: `no handler is registered for method ${payload.method}`,
+          });
+          return;
+        }
+
+        let retval: any;
+        try {
+          retval = handler(payload);
+        } catch (e) {
+          if (this.cancelled) {
+            return;
+          }
+          this.sendResult(genericResult, payload.id, null, <RpcError>{
+            code: StandardErrorCode.InternalError,
+            message: `sync error: ${e.message}`,
+            data: {
+              stack: e.stack,
+            },
+          });
+          return;
+        }
+
+        try {
+          const result = await Promise.resolve(retval);
+          debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
+          if (this.cancelled) {
+            return;
+          }
+          this.sendResult(genericResult, payload.id, result, null);
+        } catch (e) {
+          if (this.cancelled) {
+            return;
+          }
+          this.sendResult(genericResult, payload.id, null, <RpcError>{
+            code: StandardErrorCode.InternalError,
+            message: `async error: ${e.message}`,
+            data: {
+              stack: e.stack,
+            },
+          });
+        }
+      } finally {
+        delete this.inFlightRequests[payload.id];
       }
       return;
     }
 
+    if (this.cancelled) {
+      return;
+    }
     this.sendResult(genericResult, payload.id, null, <RpcError>{
       code: StandardErrorCode.InvalidRequest,
       message: "has id but doesn't have method, result, or error",
@@ -317,23 +346,24 @@ export class Conversation {
     });
   }
 
-  markComplete() {
-    this.complete = true;
-  }
+  cancel() {
+    if (this.cancelled) {
+      return;
+    }
+    this.cancelled = true;
 
-  async cancel() {
     if (this.req) {
-      debug(`Cancelling convo ${this.cid} by aborting HTTP request`);
       this.req.close();
-    } else {
-      debug(`Cancelling convo ${this.cid} by POST-ing`);
-      const path = `cancel`;
-      await this.client.transport.post({
-        path,
-        payload: {},
-        headers: {
-          "x-cid": `${this.cid}`,
-        },
+    }
+
+    if (this.feed) {
+      this.feed.close();
+    }
+
+    for (const id of Object.keys(this.inFlightRequests)) {
+      this.sendResult(genericResult, parseInt(id, 10), null, <RpcError>{
+        code: StandardErrorCode.InvalidRequest,
+        message: `Conversation cancelled`,
       });
     }
   }
@@ -343,17 +373,7 @@ export class Conversation {
       return;
     }
 
+    this.cancel();
     this.closed = true;
-    if (this.feed) {
-      this.feed.close();
-    }
-
-    if (!this.complete) {
-      this.cancel().catch(e => {
-        this.client.warn(
-          `Could not cancel conversation ${this.cid}: ${e.stack || e}`,
-        );
-      });
-    }
   }
 }

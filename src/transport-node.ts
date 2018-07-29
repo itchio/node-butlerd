@@ -59,6 +59,10 @@ class NodeTransport extends BaseTransport {
         resolve();
 
         const parser = new SSEParser(callbacks.onMessage);
+        res.on("aborted", () => {
+          const err = new Error("Feed aborted");
+          close(err);
+        });
         res.on("data", (chunk: Buffer) => {
           parser.pushData(String(chunk));
         });
@@ -99,13 +103,16 @@ class NodeTransport extends BaseTransport {
       req.on("error", err => {
         reject(err);
       });
-      req.on("abort", err => {
-        reject(err);
+      req.on("abort", () => {
+        reject(new Error(`Request aborted`));
       });
       req.on("response", res => {
         let text = "";
         res.on("data", data => {
           text += String(data);
+        });
+        res.on("aborted", () => {
+          reject(new Error(`Request aborted`));
         });
         res.on("end", () => {
           if (res.statusCode === 200) {

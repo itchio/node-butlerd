@@ -5,6 +5,7 @@ import * as which from "which";
 import { IButlerOpts } from "../instance";
 import { Endpoint } from "../support";
 import { Client } from "../client";
+import { resolve } from "path";
 
 interface ClientImpl {
   new (endpoint: Endpoint): Client;
@@ -29,8 +30,9 @@ async function main() {
         require("electron").app.on("ready", resolve);
       });
     }
-    await normalTests();
-    await cancelTests();
+    await testNaive();
+    await testCancelConversation();
+    await testCancelInstance();
   } catch (e) {
     console.error(e.stack);
     exitCode = 1;
@@ -56,8 +58,8 @@ function butlerOpts(): IButlerOpts {
   };
 }
 
-async function cancelTests() {
-  console.log(`Running cancel tests...`);
+async function testCancelInstance() {
+  console.log(`Running cancel instance tests`);
   let s = new Instance(butlerOpts());
   const client = new TestedClient(await s.getEndpoint());
   await s.cancel();
@@ -80,23 +82,78 @@ async function cancelTests() {
   assertEqual(rejected, true, "version.get call was rejected");
 }
 
-async function normalTests() {
-  console.log(`Running normal tests...`);
+async function testCancelConversation() {
+  console.log(`Running cancel conversation tests...`);
   let s = new Instance(butlerOpts());
 
   const client = new TestedClient(await s.getEndpoint());
-  await testClient(client);
+
+  {
+    let callErr: Error;
+    try {
+      await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
+        conv.on(messages.TestDouble, async params => {
+          await new Promise((resolve, reject) => {
+            setTimeout(
+              () => reject(new Error("TestDouble should not fail this way...")),
+              1000,
+            );
+          });
+          return null;
+        });
+        conv.cancel();
+      });
+    } catch (e) {
+      callErr = e;
+    }
+    console.log(`Immediate cancellation: `, callErr.stack);
+    assertEqual(!!callErr, true, "got error since we cancelled the convo");
+    assertEqual(
+      callErr.message,
+      "Conversation cancelled",
+      "has the proper error message",
+    );
+  }
+
+  {
+    let callErr: Error;
+    try {
+      await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
+        conv.on(messages.TestDouble, async params => {
+          await new Promise((resolve, reject) => {
+            setTimeout(
+              () => reject(new Error("TestDouble should not fail this way...")),
+              1000,
+            );
+          });
+          return null;
+        });
+        setTimeout(() => {
+          conv.cancel();
+        }, 400);
+      });
+    } catch (e) {
+      callErr = e;
+    }
+    console.log(`Delayed cancellation: `, callErr.stack);
+    assertEqual(!!callErr, true, "got error since we cancelled the convo");
+    assertEqual(
+      callErr.message,
+      "Request aborted",
+      "has the proper error message",
+    );
+  }
+
   s.cancel();
   await s.promise();
 }
 
-function assertEqual(actual: any, expected: any, msg: string) {
-  if (actual != expected) {
-    throw new Error(`${msg}: expected ${expected}, got ${actual}`);
-  }
-}
+async function testNaive() {
+  console.log(`Running naive tests...`);
+  let s = new Instance(butlerOpts());
 
-async function testClient(client: Client) {
+  const client = new TestedClient(await s.getEndpoint());
+
   const versionResult = await client.call(messages.VersionGet, {});
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);
 
@@ -129,6 +186,15 @@ async function testClient(client: Client) {
   assertEqual(dtres.number, input * 4, "number was doubled twice");
   assertEqual(numProgress, 3, "received 3 progress notifications");
   assertEqual(inOrder, true, "received progress notifications in order");
+
+  s.cancel();
+  await s.promise();
+}
+
+function assertEqual(actual: any, expected: any, msg: string) {
+  if (actual != expected) {
+    throw new Error(`${msg}: expected ${expected}, got ${actual}`);
+  }
 }
 
 process.on("unhandledRejection", e => {
