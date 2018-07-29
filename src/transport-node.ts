@@ -30,11 +30,11 @@ class NodeTransport extends BaseTransport {
 
     let close = (err?: Error) => {
       if (!closed) {
+        closed = true;
+        req.abort();
         if (err) {
           callbacks.onError(err);
         }
-        closed = true;
-        req.abort();
       }
     };
 
