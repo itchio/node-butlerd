@@ -1,6 +1,6 @@
 {
   "name": "butlerd",
-  "version": "10.0.1",
+  "version": "10.0.2",
   "description": "Node.js library for butlerd, the butler daemon",
   "main": "index.js",
   "browser": "./browser.js",
