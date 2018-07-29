@@ -60,6 +60,11 @@ class WebTransport extends BaseTransport {
   post(opts: PostOptions): Request {
     const url = this.makeURL(opts.path);
     const req = new XMLHttpRequest();
+    req.open("POST", url);
+    const headers = this.postHeaders(opts);
+    for (const k of Object.keys(headers)) {
+      req.setRequestHeader(k, headers[k]);
+    }
 
     const p = new Promise<any>((resolve, reject) => {
       req.onerror = (ev: ErrorEvent) => {
@@ -86,6 +91,7 @@ class WebTransport extends BaseTransport {
 
     return {
       do: async () => {
+        req.send();
         return await p;
       },
       close: () => {
