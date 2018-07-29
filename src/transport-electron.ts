@@ -161,6 +161,21 @@ export function newElectronTransport(endpoint: Endpoint): Transport {
   debug(`New transport for endpoint ${endpoint.http.address}`);
   const ca = Buffer.from(endpoint.https.ca, "base64");
   const customSession = session.fromPartition(partition);
+
+  const proxyRules = process.env.BUTLERD_PROXY;
+  if (proxyRules) {
+    customSession.setProxy(
+      {
+        pacScript: null,
+        proxyRules,
+        proxyBypassRules: null,
+      },
+      () => {
+        debug(`Using proxy ${proxyRules}`);
+      },
+    );
+  }
+
   const verifyProc = (
     req: CertificateVerifyProcRequest,
     cb: (verificationResult: number) => void,
