@@ -63,6 +63,9 @@ class WebTransport extends BaseTransport {
     req.open("POST", url);
     const headers = this.postHeaders(opts);
     for (const k of Object.keys(headers)) {
+      if (/^connection$/i.test(k)) {
+        continue;
+      }
       req.setRequestHeader(k, headers[k]);
     }
 
