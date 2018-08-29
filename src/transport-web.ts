@@ -15,7 +15,7 @@ class WebTransport extends BaseTransport {
     super(endpoint);
   }
 
-  makeFeed(cid: number): Feed {
+  makeFeed(cid: string): Feed {
     const url = this.makeFeedURL(cid);
     const es = new (window as any).EventSource(url) as EventSource;
 

@@ -19,7 +19,7 @@ export interface PostOptions {
 
 export interface Transport {
   post(opts: PostOptions): Request;
-  makeFeed(cid: number): Feed;
+  makeFeed(cid: string): Feed;
 }
 
 export class BaseTransport {
@@ -34,7 +34,7 @@ export class BaseTransport {
     return `http://${address}/${path}`;
   }
 
-  makeFeedURL(cid: number) {
+  makeFeedURL(cid: string) {
     const { secret } = this.endpoint;
     return this.makeURL(`feed?secret=${secret}&cid=${cid}`);
   }

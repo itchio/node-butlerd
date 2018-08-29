@@ -17,7 +17,7 @@ class NodeTransport extends BaseTransport {
     super(endpoint);
   }
 
-  makeFeed(cid: number): Feed {
+  makeFeed(cid: string): Feed {
     const url = this.makeFeedURL(cid);
 
     let options = parse(url) as any;

@@ -16,6 +16,7 @@ import {
 } from "./support";
 import { Transport } from "./transport";
 import { Request, Feed } from "./transport-types";
+const uuid = require("uuid");
 
 var debug = require("debug")("butlerd:client");
 
@@ -39,7 +40,6 @@ export class Client {
   transport: Transport;
 
   idSeed = 1;
-  cidSeed = 1;
 
   constructor(endpoint: Endpoint, transport: Transport) {
     this.endpoint = endpoint;
@@ -52,8 +52,8 @@ export class Client {
     return this.idSeed++;
   }
 
-  generateCID(): number {
-    return this.cidSeed++;
+  generateCID(): string {
+    return uuid.v4();
   }
 
   warn(msg: string) {
@@ -141,14 +141,14 @@ export class Conversation {
   private notificationHandlers: NotificationHandlers = {};
   private requestHandlers: RequestHandlers = {};
   private client: Client;
-  private cid: number;
+  private cid: string;
   private feed: Feed;
   private inFlightRequests: {
     [key: number]: boolean;
   } = {};
   public req: Request;
 
-  constructor(cid: number, client: Client) {
+  constructor(cid: string, client: Client) {
     this.cid = cid;
     this.client = client;
   }
