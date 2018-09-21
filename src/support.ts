@@ -1,4 +1,3 @@
-import { Transport } from "./transport";
 import { Client } from "./client";
 
 export enum StandardErrorCode {
@@ -25,16 +24,17 @@ export interface Endpoint {
   };
 }
 
-export type Creator = {
+export type Creator<T> = {
+  __params?: T;
   __kind?: CreatorKind;
 };
 
 export type RequestCreator<T, U> = ((
   params: T,
 ) => (client: Client) => IRequest<T, U>) &
-  Creator;
+  Creator<T>;
 export type NotificationCreator<T> = ((params: T) => INotification<T>) &
-  Creator;
+  Creator<T>;
 
 export type ResultCreator<T> = (
   id: number | null,
@@ -70,14 +70,16 @@ export const createNotification = <T>(
   return nc;
 };
 
-export function asRequestCreator(x: Creator): RequestCreator<any, any> {
+export function asRequestCreator<T>(x: Creator<T>): RequestCreator<T, any> {
   if (x.__kind == CreatorKind.Request) {
     return x as RequestCreator<any, any>;
   }
   return null;
 }
 
-export function asNotificationCreator(x: Creator): NotificationCreator<any> {
+export function asNotificationCreator<T>(
+  x: Creator<T>,
+): NotificationCreator<T> {
   if (x.__kind == CreatorKind.Notification) {
     return x as NotificationCreator<any>;
   }

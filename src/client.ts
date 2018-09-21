@@ -176,7 +176,7 @@ export class Conversation {
   on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
   on<T>(nc: NotificationCreator<T>, handler: (p: T) => Promise<void>);
 
-  on(c: Creator, handler: (p: any) => Promise<any>) {
+  on<T>(c: Creator<T>, handler: (p: any) => Promise<any>) {
     if (c.__kind === CreatorKind.Request) {
       this.onRequest(
         c as RequestCreator<any, any>,
