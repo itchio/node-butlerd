@@ -24,11 +24,13 @@ export class Instance {
     process.on("exit", onExit);
 
     let resolveEndpoint: (endpoint: Endpoint) => void;
+    let rejectEndpoint: (err: Error) => void;
     this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
         reject(new Error("timed out waiting for butlerd to listen"));
       }, 5000);
 
+      rejectEndpoint = reject;
       resolveEndpoint = (endpoint: Endpoint) => {
         clearTimeout(timeout);
         resolve(endpoint);
@@ -133,6 +135,8 @@ export class Instance {
         }
       });
     });
+
+    this._promise.catch(e => rejectEndpoint(e));
   }
 
   async getEndpoint(): Promise<Endpoint> {
