@@ -82,7 +82,9 @@ export class Conversation {
       }, 1 * 1000);
 
       sock.on("error", e => {
-        this.client.warn(`Encountered socket error: ${e}`);
+        if (!this.cancelled) {
+          this.client.warn(`Encountered socket error: ${e}`);
+        }
         reject(e);
       });
       sock.on("close", () => {
@@ -330,7 +332,7 @@ export class Conversation {
       return;
     }
     this.cancelled = true;
-    this.socket.destroy("JSON-RPC conversation cancelled!");
+    this.socket.end();
 
     for (const id of Object.keys(this.outboundRequests)) {
       let req = this.outboundRequests[id];
