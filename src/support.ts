@@ -15,12 +15,8 @@ export enum CreatorKind {
 
 export interface Endpoint {
   secret: string;
-  http: {
+  tcp: {
     address: string;
-  };
-  https: {
-    address: string;
-    ca: string;
   };
 }
 
@@ -129,6 +125,19 @@ export interface RpcError {
   code: number;
   message: string;
   data?: any;
+}
+
+export interface RpcMessage {
+  id: number;
+  jsonrpc: string;
+
+  // call only
+  method: string;
+  params: any;
+
+  // response only
+  error: RpcError;
+  result: any;
 }
 
 function formatRpcError(rpcError: RpcError): string {

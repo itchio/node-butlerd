@@ -3,21 +3,10 @@ import { Instance } from "..";
 import * as messages from "./test_messages";
 import * as which from "which";
 import { IButlerOpts } from "../instance";
-import { Endpoint } from "../support";
 import { Client } from "../client";
-import { resolve } from "path";
-
-interface ClientImpl {
-  new (endpoint: Endpoint): Client;
-}
-let TestedClient: ClientImpl;
+import { Conversation } from "../conversation";
 
 const inElectron = (process as any).type === "browser";
-if (inElectron) {
-  TestedClient = require("../client-electron").Client;
-} else {
-  TestedClient = require("../client-node").Client;
-}
 
 async function main() {
   let exitCode = 0;
@@ -61,7 +50,7 @@ function butlerOpts(): IButlerOpts {
 async function testCancelInstance() {
   console.log(`Running cancel instance tests`);
   let s = new Instance(butlerOpts());
-  const client = new TestedClient(await s.getEndpoint());
+  const client = new Client(await s.getEndpoint());
   await s.cancel();
   let rejected = false;
   console.log(`Firing client.call`);
@@ -86,7 +75,7 @@ async function testCancelConversation() {
   console.log(`Running cancel conversation tests...`);
   let s = new Instance(butlerOpts());
 
-  const client = new TestedClient(await s.getEndpoint());
+  const client = new Client(await s.getEndpoint());
 
   {
     let callErr: Error;
@@ -110,7 +99,7 @@ async function testCancelConversation() {
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
     assertEqual(
       callErr.message,
-      "Conversation cancelled",
+      Conversation.ErrorMessages.Cancelled,
       "has the proper error message",
     );
   }
@@ -139,7 +128,7 @@ async function testCancelConversation() {
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
     assertEqual(
       callErr.message,
-      "Request aborted",
+      Conversation.ErrorMessages.Cancelled,
       "has the proper error message",
     );
   }
@@ -152,7 +141,7 @@ async function testNaive() {
   console.log(`Running naive tests...`);
   let s = new Instance(butlerOpts());
 
-  const client = new TestedClient(await s.getEndpoint());
+  const client = new Client(await s.getEndpoint());
 
   const versionResult = await client.call(messages.VersionGet, {});
   console.log(`<-- Version.Get: ${JSON.stringify(versionResult)}`);

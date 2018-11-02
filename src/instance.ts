@@ -38,7 +38,13 @@ export class Instance {
     });
 
     this._promise = new Promise((resolve, reject) => {
-      let butlerArgs = ["--json", "daemon"];
+      let butlerArgs = [
+        "--json",
+        "daemon",
+        "--transport",
+        "tcp",
+        "--keep-alive",
+      ];
       if (debug.enabled) {
         butlerArgs = [...butlerArgs, "--verbose"];
       }
@@ -59,11 +65,13 @@ export class Instance {
       const onClose = (code: number, signal: string) => {
         process.removeListener("exit" as any, onExit);
         debug("butler closed, signal %s, code %d", signal, code);
+
+        if (this.cancelled) {
+          resolve();
+          return;
+        }
+
         if (signal) {
-          if (this.cancelled) {
-            resolve();
-            return;
-          }
           reject(new Error(`Killed by signal ${signal}`));
           return;
         }
