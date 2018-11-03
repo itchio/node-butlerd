@@ -14,19 +14,44 @@ export class Client {
   errorHandler: ErrorHandler = null;
   warningHandler: WarningHandler = null;
   endpoint: Endpoint;
-  port: number;
   host: string;
+  port: number;
   clientId: string;
+
+  proxy: {
+    host: string;
+    port: number;
+  };
 
   idSeed = 1;
 
   constructor(endpoint: Endpoint) {
     this.endpoint = endpoint;
-    const [host, port] = endpoint.tcp.address.split(":");
-    [this.host, this.port] = [host, parseInt(port, 10)];
+
+    {
+      const [host, port] = endpoint.tcp.address.split(":");
+      [this.host, this.port] = [host, parseInt(port, 10)];
+    }
+
+    {
+      let proxy = process.env.BUTLERD_PROXY;
+      if (proxy && proxy != "") {
+        const tokens = proxy.split(":");
+        if (tokens && tokens.length === 2) {
+          const [host, port] = tokens;
+          this.proxy = {
+            host: host,
+            port: parseInt(port, 10),
+          };
+        }
+      }
+    }
 
     this.clientId = `client-${(Math.random() * 1024 * 1024).toFixed(0)}`;
-    debug(`Now speaking to ${host}:${port}`);
+    debug(`Now speaking to ${this.host}:${this.port}`);
+    if (this.proxy) {
+      debug(`Through proxy ${this.proxy.host}:${this.proxy.port}`);
+    }
   }
 
   generateID(): number {

@@ -44,6 +44,15 @@ const MetaAuthenticate = createRequest<
   }
 >("Meta.Authenticate");
 
+const ProxyConnect = createRequest<
+  {
+    address: string;
+  },
+  {
+    ok: boolean;
+  }
+>("Proxy.Connect");
+
 export class Conversation {
   static ErrorMessages = {
     Cancelled: "JSON-RPC conversation cancelled",
@@ -71,6 +80,8 @@ export class Conversation {
   }
 
   async connect() {
+    let { endpoint } = this.client;
+
     const p = new Promise((resolve, reject) => {
       let sock = this.socket;
 
@@ -91,13 +102,9 @@ export class Conversation {
         this.close();
         reject(new Error(Conversation.ErrorMessages.SocketClosed));
       });
-      sock.connect(
-        {
-          host: this.client.host,
-          port: this.client.port,
-        },
-        onConnect,
-      );
+
+      let { host, port } = this.client.proxy || this.client;
+      sock.connect({ host, port }, onConnect);
       sock.pipe(split2(JSON.parse)).on("data", (message: any) => {
         this.handleMessage(message as RpcMessage).catch(e => {
           this.client.warn(`While processing message: ${e.stack}`);
@@ -111,7 +118,13 @@ export class Conversation {
     }
 
     await p;
-    await this.call(MetaAuthenticate, { secret: this.client.endpoint.secret });
+
+    if (this.client.proxy) {
+      await this.call(ProxyConnect, {
+        address: `${endpoint.tcp.address}`,
+      });
+    }
+    await this.call(MetaAuthenticate, { secret: endpoint.secret });
   }
 
   on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
