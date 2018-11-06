@@ -18,6 +18,8 @@ import * as net from "net";
 import * as split2 from "split2";
 var debug = require("debug")("butlerd:conversation");
 
+const CONNECTION_TIMEOUT = 15 * 1000; // 15s
+
 interface RequestHandlers {
   [method: string]: RequestHandler<any, any>;
 }
@@ -92,7 +94,7 @@ export class Conversation {
       };
       setTimeout(() => {
         reject(new Error(Conversation.ErrorMessages.TimedOut));
-      }, 1 * 1000);
+      }, CONNECTION_TIMEOUT);
 
       sock.on("error", e => {
         if (!this.cancelled) {
