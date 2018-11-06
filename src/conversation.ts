@@ -63,6 +63,7 @@ export class Conversation {
   private cancelled: boolean = false;
   private closed: boolean = false;
   private notificationHandlers: NotificationHandlers = {};
+  private missingNotificationHandlersWarned: { [key: string]: boolean } = {};
   private requestHandlers: RequestHandlers = {};
   private client: Client;
   private inboundRequests: {
@@ -71,6 +72,7 @@ export class Conversation {
   private outboundRequests: {
     [key: number]: OutboundRequest;
   } = {};
+  private firstMethod: string;
 
   private socket: net.Socket;
 
@@ -120,11 +122,11 @@ export class Conversation {
     await p;
 
     if (this.client.proxy) {
-      await this.call(ProxyConnect, {
+      await this.internalCall(ProxyConnect, {
         address: `${endpoint.tcp.address}`,
       });
     }
-    await this.call(MetaAuthenticate, { secret: endpoint.secret });
+    await this.internalCall(MetaAuthenticate, { secret: endpoint.secret });
   }
 
   on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
@@ -188,7 +190,13 @@ export class Conversation {
       // we got a notification!
       const handler = this.notificationHandlers[payload.method];
       if (!handler) {
-        this.client.warn(`no handler for notification ${payload.method}`);
+        if (!this.missingNotificationHandlersWarned[payload.method]) {
+          this.missingNotificationHandlersWarned[payload.method] = true;
+          this.client.warn(
+            `no handler for notification ${payload.method} (in ${this
+              .firstMethod} convo)`,
+          );
+        }
         return;
       }
 
@@ -300,6 +308,16 @@ export class Conversation {
   }
 
   async call<T, U>(rc: RequestCreator<T, U>, params: T): Promise<U> {
+    if (!this.firstMethod) {
+      this.firstMethod = rc({} as any)(this.client).method;
+    }
+    return await this.internalCall(rc, params);
+  }
+
+  private async internalCall<T, U>(
+    rc: RequestCreator<T, U>,
+    params: T,
+  ): Promise<U> {
     const obj = rc(params || ({} as T))(this.client);
     if (typeof obj.id !== "number") {
       throw new Error(`missing id in request ${JSON.stringify(obj)}`);
