@@ -187,7 +187,7 @@ function assertEqual(actual: any, expected: any, msg: string) {
 }
 
 process.on("unhandledRejection", e => {
-  console.error(`Unhandled rejection: ${e.stack}`);
+  console.error(`Unhandled rejection: ${e}`);
   process.exit(1);
 });
 

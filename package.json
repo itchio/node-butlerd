@@ -1,15 +1,13 @@
 {
   "name": "butlerd",
-  "version": "11.3.0",
+  "version": "12.0.0",
   "description": "Node.js library for butlerd, the butler daemon",
-  "main": "index.js",
+  "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
     "prepare": "npm run compile",
-    "precompile": "tsc",
-    "compile": "tsc && rm -rf lib.development lib.production && babel lib -d lib.development && cross-env NODE_ENV=production babel lib -d lib.production",
-    "test": "npm run precompile && npm run electron-test && npm run node-test",
-    "electron-test": "electron lib/tests/index.js",
+    "compile": "tsc",
+    "test": "npm run compile && npm run node-test",
     "node-test": "node lib/tests/index.js"
   },
   "repository": {
@@ -21,10 +19,7 @@
   ],
   "files": [
     "lib",
-    "lib.development",
-    "lib.production",
-    "index.js",
-    "electron-main.js"
+    "index.js"
   ],
   "author": "Amos Wenger <amos@itch.io>",
   "license": "MIT",
@@ -33,19 +28,14 @@
   },
   "homepage": "https://github.com/itchio/node-butlerd#readme",
   "devDependencies": {
-    "@types/node": "^8.10.37",
+    "@types/node": "^12.12.12",
     "@types/rimraf": "^2.0.2",
     "@types/split2": "^2.1.6",
     "@types/which": "^1.3.1",
-    "babel-cli": "^6.26.0",
-    "babel-core": "^6.26.0",
-    "babel-plugin-transform-async-to-module-method": "^6.24.1",
-    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "cross-env": "^5.1.4",
-    "electron": "^2.0.8",
-    "prettier": "^1.7.4",
+    "prettier": "^1.19.1",
     "rimraf": "^2.6.2",
-    "typescript": "^2.6.1",
+    "typescript": "^3.7.2",
     "which": "^1.3.0"
   },
   "dependencies": {

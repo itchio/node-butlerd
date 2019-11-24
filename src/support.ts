@@ -13,6 +13,10 @@ export enum CreatorKind {
   Notification = 2,
 }
 
+export interface IDGenerator {
+  generateID(): number;
+}
+
 export interface Endpoint {
   secret: string;
   tcp: {
