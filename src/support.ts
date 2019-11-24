@@ -31,7 +31,7 @@ export type Creator<T> = {
 
 export type RequestCreator<T, U> = ((
   params: T,
-) => (client: Client) => IRequest<T, U>) &
+) => (gen: IDGenerator) => IRequest<T, U>) &
   Creator<T>;
 export type NotificationCreator<T> = ((params: T) => INotification<T>) &
   Creator<T>;
@@ -48,10 +48,10 @@ export enum RequestType {
 }
 
 export const createRequest = <T, U>(method: string): RequestCreator<T, U> => {
-  let rc = ((params: T) => (client: Client) => ({
+  let rc = ((params: T) => (gen: IDGenerator) => ({
     jsonrpc: "2.0",
     method,
-    id: client.generateID(),
+    id: gen.generateID(),
     params,
   })) as RequestCreator<T, U>;
   rc.__kind = CreatorKind.Request;
