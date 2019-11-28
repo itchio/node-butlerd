@@ -4,8 +4,6 @@ import {
   createResult,
   RequestCreator,
   NotificationCreator,
-  Creator,
-  CreatorKind,
   StandardErrorCode,
   RpcError,
   ResultCreator,
@@ -18,7 +16,7 @@ import * as net from "net";
 import * as split2 from "split2";
 var debug = require("debug")("butlerd:conversation");
 
-const CONNECTION_TIMEOUT = 15 * 1000; // 15s
+const CONNECTION_TIMEOUT = 500; // 500ms timeouts, out to be enough for loopback connections..
 
 interface RequestHandlers {
   [method: string]: RequestHandler<any, any>;
@@ -33,7 +31,7 @@ interface OutboundRequest {
   reject: (err: Error) => void;
 }
 
-const genericResult = createResult<void>();
+const genericResult = createResult<any>();
 
 const debugNoop = (...args: any[]) => {};
 
@@ -74,7 +72,7 @@ export class Conversation {
   private outboundRequests: {
     [key: number]: OutboundRequest;
   } = {};
-  private firstMethod: string;
+  private firstMethod?: string;
 
   private socket: net.Socket;
 
@@ -131,79 +129,58 @@ export class Conversation {
     await this.internalCall(MetaAuthenticate, { secret: endpoint.secret });
   }
 
-  on<T, U>(rc: RequestCreator<T, U>, handler: (p: T) => Promise<U>);
-  on<T>(nc: NotificationCreator<T>, handler: (p: T) => Promise<void>);
-
-  on<T>(c: Creator<T>, handler: (p: any) => Promise<any>) {
-    if (c.__kind === CreatorKind.Request) {
-      this.onRequest(
-        c as RequestCreator<any, any>,
-        async payload => await handler(payload.params),
+  onRequest<Params, Result>(
+    rc: RequestCreator<Params, Result>,
+    handler: RequestHandler<Params, Result>,
+  ) {
+    if (this.requestHandlers[rc.__method]) {
+      throw new Error(
+        `cannot register a second request handler for ${rc.__method}`,
       );
-    } else if (c.__kind === CreatorKind.Notification) {
-      this.onNotification(
-        c as NotificationCreator<any>,
-        async payload => await handler(payload.params),
-      );
-    } else {
-      throw new Error(`Unknown creator passed (not request nor notification)`);
     }
-  }
-
-  onRequest<T, U>(rc: RequestCreator<T, U>, handler: RequestHandler<T, U>) {
-    const sample = rc(null)(this.client);
-    const { method } = sample;
-
-    if (this.requestHandlers[method]) {
-      throw new Error(`cannot register a second request handler for ${method}`);
-    }
-    this.requestHandlers[method] = handler;
+    this.requestHandlers[rc.__method] = handler;
   }
 
   onNotification<T>(
     nc: NotificationCreator<T>,
     handler: NotificationHandler<T>,
   ) {
-    const example = nc(null);
-    const { method } = example;
-
-    if (this.notificationHandlers[method]) {
+    if (this.notificationHandlers[nc.__method]) {
       throw new Error(
-        `cannot register a second notification handler for ${method}`,
+        `cannot register a second notification handler for ${nc.__method}`,
       );
     }
-    this.notificationHandlers[method] = handler;
+    this.notificationHandlers[nc.__method] = handler;
   }
 
-  private async handleMessage(payload: RpcMessage) {
+  private async handleMessage(msg: RpcMessage) {
     if (this.cancelled) {
       return;
     }
 
-    if (typeof payload !== "object") {
+    if (typeof msg !== "object") {
       return;
     }
 
-    if (payload.jsonrpc != "2.0") {
+    if (msg.jsonrpc != "2.0") {
       return;
     }
 
-    if (typeof payload.id === "undefined") {
+    if (typeof msg.id === "undefined") {
       // we got a notification!
-      const handler = this.notificationHandlers[payload.method];
+      const handler = this.notificationHandlers[msg.method];
       if (!handler) {
-        if (!this.missingNotificationHandlersWarned[payload.method]) {
-          this.missingNotificationHandlersWarned[payload.method] = true;
+        if (!this.missingNotificationHandlersWarned[msg.method]) {
+          this.missingNotificationHandlersWarned[msg.method] = true;
           this.client.warn(
-            `no handler for notification ${payload.method} (in ${this
-              .firstMethod} convo)`,
+            `no handler for notification ${msg.method} (in ${this.firstMethod} convo)`,
           );
         }
         return;
       }
 
       try {
-        await Promise.resolve(handler(payload));
+        await Promise.resolve(handler(msg.params));
       } catch (e) {
         this.client.warn(`notification handler error: ${e.stack}`);
         if (this.client.errorHandler) {
@@ -214,54 +191,37 @@ export class Conversation {
       return;
     }
 
-    if (payload.method) {
-      debug("⇐ %o", payload.method);
+    if (msg.method) {
+      debug("⇐ %o", msg.method);
 
       try {
-        this.inboundRequests[payload.id] = true;
+        this.inboundRequests[msg.id] = true;
 
         let receivedAt = Date.now();
-        const handler = this.requestHandlers[payload.method];
+        const handler = this.requestHandlers[msg.method];
         if (!handler) {
           if (this.cancelled) {
             return;
           }
-          this.sendResult(genericResult, payload.id, null, <RpcError>{
+          this.sendResult(genericResult, msg.id, null, <RpcError>{
             code: StandardErrorCode.MethodNotFound,
-            message: `no handler is registered for method ${payload.method}`,
-          });
-          return;
-        }
-
-        let retval: any;
-        try {
-          retval = handler(payload);
-        } catch (e) {
-          if (this.cancelled) {
-            return;
-          }
-          this.sendResult(genericResult, payload.id, null, <RpcError>{
-            code: StandardErrorCode.InternalError,
-            message: `sync error: ${e.message}`,
-            data: {
-              stack: e.stack,
-            },
+            message: `no handler is registered for method ${msg.method}`,
           });
           return;
         }
 
         try {
-          const result = await Promise.resolve(retval);
-          debug("⇒ %o (%oms)", payload.method, Date.now() - receivedAt);
+          const result = await handler(msg.params);
+          debug("⇒ %o (%oms)", msg.method, Date.now() - receivedAt);
           if (this.cancelled) {
             return;
           }
-          this.sendResult(genericResult, payload.id, result, null);
+          this.sendResult(genericResult, msg.id, result, undefined);
         } catch (e) {
           if (this.cancelled) {
             return;
           }
-          this.sendResult(genericResult, payload.id, null, <RpcError>{
+          this.sendResult(genericResult, msg.id, null, <RpcError>{
             code: StandardErrorCode.InternalError,
             message: `async error: ${e.message}`,
             data: {
@@ -270,18 +230,18 @@ export class Conversation {
           });
         }
       } finally {
-        delete this.inboundRequests[payload.id];
+        delete this.inboundRequests[msg.id];
       }
       return;
     }
 
-    if (payload.result || payload.error) {
-      let req = this.outboundRequests[payload.id];
-      delete this.outboundRequests[payload.id];
-      if (payload.error) {
-        req.reject(new RequestError(payload.error));
+    if (msg.result || msg.error) {
+      let req = this.outboundRequests[msg.id];
+      delete this.outboundRequests[msg.id];
+      if (msg.error) {
+        req.reject(new RequestError(msg.error));
       } else {
-        req.resolve(payload.result);
+        req.resolve(msg.result);
       }
       return;
     }
@@ -289,16 +249,16 @@ export class Conversation {
     if (this.cancelled) {
       return;
     }
-    this.sendResult(genericResult, payload.id, null, <RpcError>{
+    this.sendResult(genericResult, msg.id, null, <RpcError>{
       code: StandardErrorCode.InvalidRequest,
       message: "has id but doesn't have method, result, or error",
     });
   }
 
-  sendResult<T>(
-    rc: ResultCreator<T>,
+  sendResult<Result>(
+    rc: ResultCreator<Result>,
     id: number,
-    result?: T,
+    result?: Result,
     error?: RpcError,
   ) {
     const obj = rc(id, result, error);
@@ -368,7 +328,7 @@ export class Conversation {
     this.socket.end();
 
     for (const id of Object.keys(this.outboundRequests)) {
-      let req = this.outboundRequests[id];
+      let req = this.outboundRequests[parseInt(id, 10)];
       req.reject(new Error(Conversation.ErrorMessages.Cancelled));
     }
     this.outboundRequests = {};

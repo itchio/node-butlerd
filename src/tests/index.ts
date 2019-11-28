@@ -63,9 +63,9 @@ async function testCancelInstance() {
       console.log(`VersionGet rejected`);
       rejected = true;
     });
-  console.log(`Waiting two seconds...`);
+  console.log(`Waiting one second...`);
   await new Promise((resolve, reject) => {
-    setTimeout(resolve, 2000);
+    setTimeout(resolve, 1000);
   });
   assertEqual(s.cancelled, true, "instance was cancelled");
   assertEqual(rejected, true, "version.get call was rejected");
@@ -78,10 +78,10 @@ async function testCancelConversation() {
   const client = new Client(await s.getEndpoint());
 
   {
-    let callErr: Error;
+    let callErr: Error | undefined;
     try {
       await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
-        conv.on(messages.TestDouble, async params => {
+        conv.onRequest(messages.TestDouble, async params => {
           await new Promise((resolve, reject) => {
             setTimeout(
               () => reject(new Error("TestDouble should not fail this way...")),
@@ -95,6 +95,9 @@ async function testCancelConversation() {
     } catch (e) {
       callErr = e;
     }
+    if (!callErr) {
+      throw new Error(`Should've gotten an error while cancelling`);
+    }
     console.log(`Immediate cancellation: `, callErr.stack);
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
     assertEqual(
@@ -105,10 +108,10 @@ async function testCancelConversation() {
   }
 
   {
-    let callErr: Error;
+    let callErr: Error | undefined;
     try {
       await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
-        conv.on(messages.TestDouble, async params => {
+        conv.onRequest(messages.TestDouble, async params => {
           await new Promise((resolve, reject) => {
             setTimeout(
               () => reject(new Error("TestDouble should not fail this way...")),
@@ -123,6 +126,11 @@ async function testCancelConversation() {
       });
     } catch (e) {
       callErr = e;
+    }
+    if (!callErr) {
+      throw new Error(
+        `Should've gotten an error while doing delayed cancellation`,
+      );
     }
     console.log(`Delayed cancellation: `, callErr.stack);
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
@@ -157,7 +165,7 @@ async function testNaive() {
       number: input,
     },
     conv => {
-      conv.on(messages.Progress, async progress => {
+      conv.onNotification(messages.Progress, async progress => {
         console.log(`<(._.)> ${JSON.stringify(progress)}`);
         numProgress++;
         if (progress.progress > lastProgress) {
@@ -166,7 +174,7 @@ async function testNaive() {
           inOrder = false;
         }
       });
-      conv.on(messages.TestDouble, async ({ number }) => {
+      conv.onRequest(messages.TestDouble, async ({ number }) => {
         return { number: number * 2 };
       });
     },

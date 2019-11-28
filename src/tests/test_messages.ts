@@ -1,11 +1,4 @@
-import {
-  createRequest,
-  createNotification,
-  IRequest,
-  INotification,
-  CreatorKind,
-} from "../support";
-import { Client } from "../client";
+import { createNotification, createRequest } from "../support";
 
 /**
  * Params for Connection.New
@@ -51,7 +44,7 @@ export interface VersionGetResult {
 /**
  * Retrieves the version of the butler instance the client
  * is connected to.
- * 
+ *
  * This endpoint is meant to gather information when reporting
  * issues, rather than feature sniffing. Conforming clients should
  * automatically download new versions of butler, see the **Updating** section.
@@ -80,7 +73,7 @@ export interface TestDoubleTwiceResult {
  * Test request: asks butler to double a number twice.
  * First by calling @@TestDoubleParams, then by
  * returning the result of that call doubled.
- * 
+ *
  * Use that to try out your JSON-RPC 2.0 over TCP implementation.
  */
 export const TestDoubleTwice = createRequest<

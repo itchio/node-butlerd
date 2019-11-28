@@ -10,12 +10,11 @@ export interface IButlerOpts {
 }
 
 export class Instance {
-  process: ChildProcess;
+  process?: ChildProcess;
   _promise: Promise<void>;
   _endpointPromise: Promise<Endpoint>;
   cancelled = false;
   gracefullyExited = false;
-  secret: string;
 
   constructor(butlerOpts: IButlerOpts) {
     let onExit = () => {
@@ -60,7 +59,7 @@ export class Instance {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
-      let errLines = [];
+      let errLines: string[] = [];
 
       const onClose = (code: number, signal: string) => {
         process.removeListener("exit" as any, onExit);
@@ -122,7 +121,7 @@ export class Instance {
         }
       };
 
-      this.process.stdout.pipe(split2()).on("data", (line: string) => {
+      this.process.stdout!.pipe(split2()).on("data", (line: string) => {
         try {
           processStdoutLine(line);
         } catch (e) {
@@ -135,7 +134,7 @@ export class Instance {
         errLines.push(line);
       };
 
-      this.process.stderr.pipe(split2()).on("data", (line: string) => {
+      this.process.stderr!.pipe(split2()).on("data", (line: string) => {
         try {
           processStderrLine(line);
         } catch (e) {

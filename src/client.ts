@@ -11,14 +11,14 @@ var debug = require("debug")("butlerd:client");
 export type SetupFunc = (c: Conversation) => void;
 
 export class Client {
-  errorHandler: ErrorHandler = null;
-  warningHandler: WarningHandler = null;
+  errorHandler?: ErrorHandler;
+  warningHandler?: WarningHandler;
   endpoint: Endpoint;
   host: string;
   port: number;
   clientId: string;
 
-  proxy: {
+  proxy?: {
     host: string;
     port: number;
   };
@@ -76,20 +76,19 @@ export class Client {
     this.warningHandler = handler;
   }
 
-  async call<T, U>(
-    rc: RequestCreator<T, U>,
-    params: T,
+  async call<Params, Result>(
+    rc: RequestCreator<Params, Result>,
+    params: Params,
     setup?: SetupFunc,
-  ): Promise<U> {
-    let conversation: Conversation;
-
+  ): Promise<Result> {
+    let conversation = new Conversation(this);
     try {
-      conversation = new Conversation(this);
       if (setup) {
         setup(conversation);
       }
       await conversation.connect();
-      return await conversation.call(rc, params);
+      let res = await conversation.call(rc, params);
+      return res;
     } finally {
       conversation.close();
     }

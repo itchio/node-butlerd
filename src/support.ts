@@ -1,16 +1,9 @@
-import { Client } from "./client";
-
 export enum StandardErrorCode {
   ParseError = -32700,
   InvalidRequest = -32600,
   MethodNotFound = -32601,
   InvalidParams = -32602,
   InternalError = -32603,
-}
-
-export enum CreatorKind {
-  Request = 1,
-  Notification = 2,
 }
 
 export interface IDGenerator {
@@ -24,73 +17,62 @@ export interface Endpoint {
   };
 }
 
-export type Creator<T> = {
-  __params?: T;
-  __kind?: CreatorKind;
-};
+export interface RequestCreator<Params, Result> {
+  (params: Params): (gen: IDGenerator) => Request<Params, Result>;
+  __method: string;
+  __params?: Params;
+  __result?: Params;
+}
 
-export type RequestCreator<T, U> = ((
-  params: T,
-) => (gen: IDGenerator) => IRequest<T, U>) &
-  Creator<T>;
-export type NotificationCreator<T> = ((params: T) => INotification<T>) &
-  Creator<T>;
+export interface NotificationCreator<Params> {
+  (params: Params): Notification<Params>;
+  __method: string;
+  __params?: Params;
+}
 
 export type ResultCreator<T> = (
-  id: number | null,
+  id?: number,
   result?: T,
   error?: RpcError,
-) => IResult<T>;
+) => RpcResult<T>;
 
 export enum RequestType {
   Request = 0,
   Notification = 1,
 }
 
-export const createRequest = <T, U>(method: string): RequestCreator<T, U> => {
-  let rc = ((params: T) => (gen: IDGenerator) => ({
-    jsonrpc: "2.0",
-    method,
-    id: gen.generateID(),
-    params,
-  })) as RequestCreator<T, U>;
-  rc.__kind = CreatorKind.Request;
-  return rc;
-};
-
-export const createNotification = <T>(
+export const createRequest = <Params, Result>(
   method: string,
-): NotificationCreator<T> => {
-  let nc = ((params: T) => ({
-    jsonrpc: "2.0",
-    method,
-    params,
-  })) as NotificationCreator<T>;
-  nc.__kind = CreatorKind.Notification;
-  return nc;
+): RequestCreator<Params, Result> => {
+  return Object.assign(
+    (params: Params) => (gen: IDGenerator) => ({
+      jsonrpc: "2.0",
+      method,
+      id: gen.generateID(),
+      params,
+    }),
+    { __method: method },
+  );
 };
 
-export function asRequestCreator<T>(x: Creator<T>): RequestCreator<T, any> {
-  if (x.__kind == CreatorKind.Request) {
-    return x as RequestCreator<any, any>;
-  }
-  return null;
-}
-
-export function asNotificationCreator<T>(
-  x: Creator<T>,
-): NotificationCreator<T> {
-  if (x.__kind == CreatorKind.Notification) {
-    return x as NotificationCreator<any>;
-  }
-  return null;
-}
+export const createNotification = <Params>(
+  method: string,
+): NotificationCreator<Params> => {
+  return Object.assign(
+    (params: Params) => ({
+      jsonrpc: "2.0",
+      method,
+      params,
+    }),
+    { __method: method },
+  ) as NotificationCreator<Params>;
+};
 
 export const createResult = <T>(): ResultCreator<T> => (
-  id: number | null,
+  id?: number,
   result?: T,
   error?: RpcError,
-) => {
+): RpcResult<T> => {
   if (error) {
     return {
       jsonrpc: "2.0",
@@ -106,21 +88,18 @@ export const createResult = <T>(): ResultCreator<T> => (
   }
 };
 
-const Handshake = createRequest<{ message: string }, { signature: string }>(
-  "Handshake",
-);
-
-export interface INotification<T> {
+export interface Notification<T> {
   method: string;
-  params?: T;
+  params: T;
 }
 
-export interface IRequest<T, U> extends INotification<T> {
+export interface Request<T, U> extends Notification<T> {
   id: number;
 }
 
-export interface IResult<T> {
-  id: number | null;
+export interface RpcResult<T> {
+  jsonrpc: "2.0";
+  id?: number;
   result?: T;
   error?: RpcError;
 }
@@ -164,7 +143,9 @@ export class RequestError extends Error {
   }
 }
 
-export type RequestHandler<T, U> = (payload: IRequest<T, U>) => U | Promise<U>;
-export type NotificationHandler<T> = (payload: INotification<T>) => any;
+export type RequestHandler<Params, Result> = (
+  params: Params,
+) => Promise<Result>;
+export type NotificationHandler<Params> = (params: Params) => void;
 export type ErrorHandler = (e: Error) => void;
 export type WarningHandler = (msg: string) => void;
