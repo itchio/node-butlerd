@@ -14,7 +14,6 @@ import {
 import { Client } from "./client";
 import * as net from "net";
 import * as split2 from "split2";
-var debug = require("debug")("butlerd:conversation");
 
 const CONNECTION_TIMEOUT = 500; // 500ms timeouts, out to be enough for loopback connections..
 
@@ -32,8 +31,6 @@ interface OutboundRequest {
 }
 
 const genericResult = createResult<any>();
-
-const debugNoop = (...args: any[]) => {};
 
 const MetaAuthenticate = createRequest<
   {
@@ -192,8 +189,6 @@ export class Conversation {
     }
 
     if (msg.method) {
-      debug("⇐ %o", msg.method);
-
       try {
         this.inboundRequests[msg.id] = true;
 
@@ -212,7 +207,6 @@ export class Conversation {
 
         try {
           const result = await handler(msg.params);
-          debug("⇒ %o (%oms)", msg.method, Date.now() - receivedAt);
           if (this.cancelled) {
             return;
           }
@@ -286,12 +280,7 @@ export class Conversation {
     }
 
     let method = obj.method;
-    const debugReal = debug;
-
     {
-      const debug = method === "Meta.Authenticate" ? debugNoop : debugReal;
-      debug("→ %o", method);
-
       let sentAt = Date.now();
 
       try {
@@ -299,10 +288,8 @@ export class Conversation {
           this.outboundRequests[obj.id] = { resolve, reject };
           this.write(obj);
         });
-        debug("← %o (%oms)", method, Date.now() - sentAt);
         return res;
       } catch (err) {
-        debug("⇷ %o (%oms): %s", method, Date.now() - sentAt, err.message);
         throw err;
       } finally {
         delete this.outboundRequests[obj.id];
@@ -312,7 +299,6 @@ export class Conversation {
 
   private write(obj: any) {
     if (this.cancelled) {
-      debug(`Refusing to write object to cancelled connection`);
       return;
     }
     let payload = JSON.stringify(obj);
