@@ -1,4 +1,5 @@
 import * as split2 from "split2";
+import * as fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 import { Endpoint } from "./support";
 
@@ -7,27 +8,48 @@ const debug = require("debug")("butlerd:instance");
 export interface IButlerOpts {
   butlerExecutable: string;
   args?: string[];
+  endpointTimeout?: number;
+  log?: (msg: string) => void;
 }
+
+const DEFAULT_TIMEOUT = 7000; // ms
 
 export class Instance {
   process?: ChildProcess;
   _promise: Promise<void>;
   _endpointPromise: Promise<Endpoint>;
+  exiting = false;
   cancelled = false;
   gracefullyExited = false;
 
   constructor(butlerOpts: IButlerOpts) {
+    let log = (msg: string) => {
+      debug(msg);
+      if (butlerOpts.log) {
+        butlerOpts.log(msg);
+      }
+    };
+
     let onExit = () => {
+      this.exiting = true;
       this.cancel();
     };
     process.on("exit", onExit);
 
     let resolveEndpoint: (endpoint: Endpoint) => void;
     let rejectEndpoint: (err: Error) => void;
+    let endpointTimeout = butlerOpts.endpointTimeout || DEFAULT_TIMEOUT;
+    let beforeEndpoint = Date.now();
+
     this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
+        if (this.process) {
+          log(`one timeout`);
+        } else {
+          log(`spawned butler, PID ${this.process!.pid}`);
+        }
         reject(new Error("timed out waiting for butlerd to listen"));
-      }, 5000);
+      }, endpointTimeout);
 
       rejectEndpoint = reject;
       resolveEndpoint = (endpoint: Endpoint) => {
@@ -51,19 +73,28 @@ export class Instance {
         butlerArgs = [...butlerArgs, ...butlerOpts.args];
       }
 
-      debug(`spawning butler with args ${butlerArgs.join(" ")}...`);
-
-      let { butlerExecutable = "butler" } = butlerOpts;
+      log(`spawning butler with args ${butlerArgs.join(" ")}...`);
+      let { butlerExecutable } = butlerOpts;
+      let exists = false;
+      try {
+        exists = fs.existsSync(butlerExecutable);
+      } catch (_) {
+        // ignore
+      }
+      log(
+        `using executable ${butlerExecutable} (exists as absolute path? ${exists})`,
+      );
 
       this.process = spawn(butlerExecutable, butlerArgs, {
         stdio: ["ignore", "pipe", "pipe"],
       });
+      log(`spawned butler, PID ${this.process!.pid}`);
 
       let errLines: string[] = [];
 
       const onClose = (code: number, signal: string) => {
         process.removeListener("exit" as any, onExit);
-        debug("butler closed, signal %s, code %d", signal, code);
+        log(`butler closed, signal ${signal}, code ${code}`);
 
         if (this.cancelled) {
           resolve();
@@ -96,7 +127,12 @@ export class Instance {
       });
 
       this.process.on("error", err => {
-        debug("butler had error: %s", err.stack || err.message);
+        if (this.exiting) {
+          // swallow error if process is quitting anyway
+          return;
+        }
+
+        log(`butler had error: ${err.stack ? err.stack : String(err)}`);
         reject(err);
       });
 
@@ -105,17 +141,19 @@ export class Instance {
         try {
           data = JSON.parse(line);
         } catch (e) {
-          debug(`[out] ${line}`);
+          log(`[out] ${line}`);
           return;
         }
 
         switch (data.type) {
           case "butlerd/listen-notification": {
+            let elapsedMs = Date.now() - beforeEndpoint;
+            log(`got endpoint, took ${elapsedMs.toFixed()}ms`);
             resolveEndpoint(data);
             break;
           }
           case "log": {
-            debug(`[${data.level}] ${data.message}`);
+            log(`[${data.level}] ${data.message}`);
             break;
           }
         }
@@ -130,7 +168,7 @@ export class Instance {
       });
 
       const processStderrLine = (line: string) => {
-        debug(`[err] ${line}`);
+        log(`[err] ${line}`);
         errLines.push(line);
       };
 
