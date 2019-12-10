@@ -87,9 +87,6 @@ export class Conversation {
       }, CONNECTION_TIMEOUT);
 
       sock.on("error", e => {
-        if (!this.cancelled) {
-          this.client.warn(`Encountered socket error: ${e}`);
-        }
         reject(e);
       });
       sock.on("close", () => {
