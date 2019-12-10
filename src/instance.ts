@@ -82,7 +82,9 @@ export class Instance {
         // ignore
       }
       log(
-        `using executable ${butlerExecutable} (exists as absolute path? ${exists})`,
+        `using executable ${butlerExecutable} (${
+          exists ? "exists on disk" : "does not exist on disk"
+        })`,
       );
 
       this.process = spawn(butlerExecutable, butlerArgs, {

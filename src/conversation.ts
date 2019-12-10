@@ -10,12 +10,13 @@ import {
   RequestError,
   RpcMessage,
   createRequest,
+  InternalCode,
 } from "./support";
 import { Client } from "./client";
 import * as net from "net";
 import * as split2 from "split2";
 
-const CONNECTION_TIMEOUT = 500; // 500ms timeouts, out to be enough for loopback connections..
+export const CONNECTION_TIMEOUT = 2000; // 2s timeouts, out to be enough for loopback connections..
 
 interface RequestHandlers {
   [method: string]: RequestHandler<any, any>;
@@ -51,12 +52,6 @@ const ProxyConnect = createRequest<
 >("Proxy.Connect");
 
 export class Conversation {
-  static ErrorMessages = {
-    Cancelled: "JSON-RPC conversation cancelled",
-    TimedOut: "JSON-RPC connection timed out",
-    SocketClosed: "JSON-RPC socket closed by remote peer",
-  };
-
   private cancelled: boolean = false;
   private closed: boolean = false;
   private notificationHandlers: NotificationHandlers = {};
@@ -88,7 +83,7 @@ export class Conversation {
         resolve();
       };
       setTimeout(() => {
-        reject(new Error(Conversation.ErrorMessages.TimedOut));
+        reject(RequestError.fromInternalCode(InternalCode.ConnectionTimedOut));
       }, CONNECTION_TIMEOUT);
 
       sock.on("error", e => {
@@ -99,7 +94,7 @@ export class Conversation {
       });
       sock.on("close", () => {
         this.close();
-        reject(new Error(Conversation.ErrorMessages.SocketClosed));
+        reject(RequestError.fromInternalCode(InternalCode.SocketClosed));
       });
 
       let { host, port } = this.client.proxy || this.client;
@@ -113,7 +108,7 @@ export class Conversation {
     p.catch(e => {}); // avoid unhandled rejections
 
     if (this.cancelled) {
-      throw new Error(Conversation.ErrorMessages.Cancelled);
+      throw RequestError.fromInternalCode(InternalCode.ConversationCancelled);
     }
 
     await p;
@@ -311,13 +306,15 @@ export class Conversation {
       return;
     }
     this.cancelled = true;
-    this.socket.end();
 
     for (const id of Object.keys(this.outboundRequests)) {
       let req = this.outboundRequests[parseInt(id, 10)];
-      req.reject(new Error(Conversation.ErrorMessages.Cancelled));
+      req.reject(
+        RequestError.fromInternalCode(InternalCode.ConversationCancelled),
+      );
     }
     this.outboundRequests = {};
+    this.socket.end();
   }
 
   close() {

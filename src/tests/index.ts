@@ -1,10 +1,11 @@
 require("debug").enable("butlerd:*");
-import { Instance } from "..";
-import * as messages from "./test_messages";
 import * as which from "which";
-import { IButlerOpts } from "../instance";
+import { Instance } from "..";
 import { Client } from "../client";
-import { Conversation } from "../conversation";
+import { IButlerOpts } from "../instance";
+import { InternalCode, RequestError } from "../support";
+import * as messages from "./test_messages";
+import { CONNECTION_TIMEOUT } from "../conversation";
 
 const inElectron = (process as any).type === "browser";
 
@@ -63,9 +64,9 @@ async function testCancelInstance() {
       console.log(`VersionGet rejected`);
       rejected = true;
     });
-  console.log(`Waiting one second...`);
+  console.log(`Waiting slightly longer than timeout...`);
   await new Promise((resolve, reject) => {
-    setTimeout(resolve, 1000);
+    setTimeout(resolve, CONNECTION_TIMEOUT + 300);
   });
   assertEqual(s.cancelled, true, "instance was cancelled");
   assertEqual(rejected, true, "version.get call was rejected");
@@ -102,7 +103,7 @@ async function testCancelConversation() {
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
     assertEqual(
       callErr.message,
-      Conversation.ErrorMessages.Cancelled,
+      RequestError.fromInternalCode(InternalCode.ConversationCancelled).message,
       "has the proper error message",
     );
   }
@@ -136,7 +137,7 @@ async function testCancelConversation() {
     assertEqual(!!callErr, true, "got error since we cancelled the convo");
     assertEqual(
       callErr.message,
-      Conversation.ErrorMessages.Cancelled,
+      RequestError.fromInternalCode(InternalCode.ConversationCancelled).message,
       "has the proper error message",
     );
   }
