@@ -1,7 +1,7 @@
 # butlerd for node.js
 
 ![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)
-[![Build Status](https://travis-ci.org/itchio/node-butlerd.svg?branch=master)](https://travis-ci.org/itchio/node-butlerd)
+[![Test](https://github.com/itchio/node-butlerd/actions/workflows/test.yml/badge.svg)](https://github.com/itchio/node-butlerd/actions/workflows/test.yml)
 [![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 [![Available on npm](https://img.shields.io/npm/v/butlerd.svg)](https://www.npmjs.com/package/butlerd)
 
@@ -19,14 +19,40 @@ directions.
 
 ## Usage
 
-It would be neat to have a code sample right in the README, but those tend to
-get out-of-sync with the actual code
+```typescript
+import { Instance, Client } from "butlerd";
+import * as messages from "./butlerd/messages"; // generated with generous
 
-Instead, please head over to the [tests](https://github.com/itchio/node-butlerd/tree/master/src/tests) - they ought to be readable!
+// Start butler daemon
+const instance = new Instance({
+  butlerExecutable: "/path/to/butler",
+});
 
-Note that this repository does not include any request or notification definitions.
-These can be generated with `generous ts`, see <https://github.com/itchio/butler> for
-the generous tool.
+// Connect a client
+const client = new Client(await instance.getEndpoint());
+
+// Make a request
+const result = await client.call(messages.VersionGet, {});
+console.log(result.version);
+
+// Shut down
+instance.cancel();
+await instance.promise();
+```
+
+For more complete examples including handling notifications and requests, see the [tests](https://github.com/itchio/node-butlerd/tree/master/src/tests).
+
+## Generating TypeScript Definitions
+
+This repository does not include request or notification definitions for butler's API. You can generate typed message definitions using the `generous` tool included in the butler repository:
+
+```bash
+git clone https://github.com/itchio/butler
+cd butler
+go run ./butlerd/generous ts butlerd/messages.ts
+```
+
+This generates TypeScript files with typed request and notification creators that work with this package's `Client.call()` method.
 
 ## License
 
