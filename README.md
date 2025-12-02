@@ -2,8 +2,7 @@
 
 ![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)
 [![Test](https://github.com/itchio/node-butlerd/actions/workflows/test.yml/badge.svg)](https://github.com/itchio/node-butlerd/actions/workflows/test.yml)
-[![styled with prettier](https://img.shields.io/badge/styled_with-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
-[![Available on npm](https://img.shields.io/npm/v/butlerd.svg)](https://www.npmjs.com/package/butlerd)
+[![Available on npm](https://img.shields.io/npm/v/@itchio/butlerd.svg)](https://www.npmjs.com/package/@itchio/butlerd)
 
 The butlerd package handles:
 
@@ -20,7 +19,7 @@ directions.
 ## Usage
 
 ```typescript
-import { Instance, Client } from "butlerd";
+import { Instance, Client } from "@itchio/butlerd";
 import * as messages from "./butlerd/messages"; // generated with generous
 
 // Start butler daemon
