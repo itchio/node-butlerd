@@ -35,7 +35,7 @@ export class Client {
 
     {
       let proxy = process.env.BUTLERD_PROXY;
-      if (proxy && proxy != "") {
+      if (proxy && proxy !== "") {
         const tokens = proxy.split(":");
         if (tokens && tokens.length === 2) {
           const [host, port] = tokens;

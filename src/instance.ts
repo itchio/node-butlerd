@@ -95,7 +95,7 @@ export class Instance {
       let errLines: string[] = [];
 
       const onClose = (code: number, signal: string) => {
-        process.removeListener("exit" as any, onExit);
+        process.removeListener("exit", onExit);
         log(`butler closed, signal ${signal}, code ${code}`);
 
         if (this.cancelled) {
