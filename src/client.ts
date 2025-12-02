@@ -6,7 +6,9 @@ import {
   RequestError,
 } from "./support";
 import { Conversation } from "./conversation";
-var debug = require("debug")("butlerd:client");
+import createDebug from "debug";
+
+const debug = createDebug("butlerd:client");
 
 export type SetupFunc = (c: Conversation) => void;
 

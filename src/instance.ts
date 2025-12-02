@@ -1,9 +1,10 @@
 import split2 from "split2";
-import * as fs from "fs";
+import fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 import { Endpoint } from "./support";
+import createDebug from "debug";
 
-const debug = require("debug")("butlerd:instance");
+const debug = createDebug("butlerd:instance");
 
 export interface IButlerOpts {
   butlerExecutable: string;
