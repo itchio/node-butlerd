@@ -44,9 +44,9 @@ export class Instance {
     this._endpointPromise = new Promise((resolve, reject) => {
       let timeout = setTimeout(() => {
         if (this.process) {
-          log(`one timeout`);
+          log(`timed out waiting for endpoint, butler PID ${this.process.pid}`);
         } else {
-          log(`spawned butler, PID ${this.process!.pid}`);
+          log(`timed out waiting for endpoint, butler process not spawned`);
         }
         reject(new Error("timed out waiting for butlerd to listen"));
       }, endpointTimeout);
