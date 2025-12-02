@@ -1,4 +1,4 @@
-import * as split2 from "split2";
+import split2 from "split2";
 import * as fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 import { Endpoint } from "./support";

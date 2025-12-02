@@ -24,7 +24,7 @@ async function main() {
     await testCancelConversation();
     await testCancelInstance();
   } catch (e) {
-    console.error(e.stack);
+    console.error(e instanceof Error ? e.stack : String(e));
     exitCode = 1;
   } finally {
     if (inElectron) {
@@ -94,7 +94,7 @@ async function testCancelConversation() {
         conv.cancel();
       });
     } catch (e) {
-      callErr = e;
+      callErr = e instanceof Error ? e : new Error(String(e));
     }
     if (!callErr) {
       throw new Error(`Should've gotten an error while cancelling`);
@@ -126,7 +126,7 @@ async function testCancelConversation() {
         }, 400);
       });
     } catch (e) {
-      callErr = e;
+      callErr = e instanceof Error ? e : new Error(String(e));
     }
     if (!callErr) {
       throw new Error(

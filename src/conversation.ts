@@ -14,7 +14,7 @@ import {
 } from "./support";
 import { Client } from "./client";
 import * as net from "net";
-import * as split2 from "split2";
+import split2 from "split2";
 
 export const CONNECTION_TIMEOUT = 2000; // 2s timeouts, out to be enough for loopback connections..
 
@@ -76,7 +76,7 @@ export class Conversation {
   async connect() {
     let { endpoint } = this.client;
 
-    const p = new Promise((resolve, reject) => {
+    const p = new Promise<void>((resolve, reject) => {
       let sock = this.socket;
 
       let onConnect = () => {
@@ -171,9 +171,10 @@ export class Conversation {
       try {
         await Promise.resolve(handler(msg.params));
       } catch (e) {
-        this.client.warn(`notification handler error: ${e.stack}`);
+        const err = e instanceof Error ? e : new Error(String(e));
+        this.client.warn(`notification handler error: ${err.stack}`);
         if (this.client.errorHandler) {
-          this.client.errorHandler(e);
+          this.client.errorHandler(err);
         }
       }
 
@@ -207,11 +208,12 @@ export class Conversation {
           if (this.cancelled) {
             return;
           }
+          const err = e instanceof Error ? e : new Error(String(e));
           this.sendResult(genericResult, msg.id, null, <RpcError>{
             code: StandardErrorCode.InternalError,
-            message: `async error: ${e.message}`,
+            message: `async error: ${err.message}`,
             data: {
-              stack: e.stack,
+              stack: err.stack,
             },
           });
         }
