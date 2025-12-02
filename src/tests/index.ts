@@ -57,7 +57,7 @@ async function testCancelInstance() {
   console.log(`Firing client.call`);
   client
     .call(messages.VersionGet, {})
-    .then(result => {
+    .then((result) => {
       console.log(`VersionGet resolved`, result);
     })
     .catch(() => {
@@ -81,8 +81,8 @@ async function testCancelConversation() {
   {
     let callErr: Error | undefined;
     try {
-      await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
-        conv.onRequest(messages.TestDouble, async params => {
+      await client.call(messages.TestDoubleTwice, { number: 4 }, (conv) => {
+        conv.onRequest(messages.TestDouble, async (params) => {
           await new Promise((resolve, reject) => {
             setTimeout(
               () => reject(new Error("TestDouble should not fail this way...")),
@@ -111,8 +111,8 @@ async function testCancelConversation() {
   {
     let callErr: Error | undefined;
     try {
-      await client.call(messages.TestDoubleTwice, { number: 4 }, conv => {
-        conv.onRequest(messages.TestDouble, async params => {
+      await client.call(messages.TestDoubleTwice, { number: 4 }, (conv) => {
+        conv.onRequest(messages.TestDouble, async (params) => {
           await new Promise((resolve, reject) => {
             setTimeout(
               () => reject(new Error("TestDouble should not fail this way...")),
@@ -165,8 +165,8 @@ async function testNaive() {
     {
       number: input,
     },
-    conv => {
-      conv.onNotification(messages.Progress, async progress => {
+    (conv) => {
+      conv.onNotification(messages.Progress, async (progress) => {
         console.log(`<(._.)> ${JSON.stringify(progress)}`);
         numProgress++;
         if (progress.progress > lastProgress) {
@@ -195,12 +195,12 @@ function assertEqual(actual: any, expected: any, msg: string) {
   }
 }
 
-process.on("unhandledRejection", e => {
+process.on("unhandledRejection", (e) => {
   console.error(`Unhandled rejection: ${e}`);
   process.exit(1);
 });
 
-main().catch(e => {
+main().catch((e) => {
   console.error(`Error in main: `);
   console.error(e.stack);
   process.exit(1);

@@ -129,7 +129,7 @@ export class Instance {
         }
       });
 
-      this.process.on("error", err => {
+      this.process.on("error", (err) => {
         if (this.exiting) {
           // swallow error if process is quitting anyway
           return;
@@ -184,7 +184,7 @@ export class Instance {
       });
     });
 
-    this._promise.catch(e => rejectEndpoint(e));
+    this._promise.catch((e) => rejectEndpoint(e));
   }
 
   async getEndpoint(): Promise<Endpoint> {

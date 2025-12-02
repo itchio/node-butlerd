@@ -86,7 +86,7 @@ export class Conversation {
         reject(RequestError.fromInternalCode(InternalCode.ConnectionTimedOut));
       }, CONNECTION_TIMEOUT);
 
-      sock.on("error", e => {
+      sock.on("error", (e) => {
         reject(e);
       });
       sock.on("close", () => {
@@ -97,12 +97,12 @@ export class Conversation {
       let { host, port } = this.client.proxy || this.client;
       sock.connect({ host, port }, onConnect);
       sock.pipe(split2(JSON.parse)).on("data", (message: any) => {
-        this.handleMessage(message as RpcMessage).catch(e => {
+        this.handleMessage(message as RpcMessage).catch((e) => {
           this.client.warn(`While processing message: ${e.stack}`);
         });
       });
     });
-    p.catch(e => {}); // avoid unhandled rejections
+    p.catch((e) => {}); // avoid unhandled rejections
 
     if (this.cancelled) {
       throw RequestError.fromInternalCode(InternalCode.ConversationCancelled);

@@ -31,7 +31,7 @@
     "@types/node": "^24.10.1",
     "@types/split2": "^4.2.3",
     "@types/which": "^3.0.4",
-    "prettier": "^1.19.1",
+    "prettier": "^3.7.3",
     "typescript": "^5.9.3",
     "which": "^6.0.0"
   },

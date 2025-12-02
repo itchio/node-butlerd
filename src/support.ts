@@ -71,25 +71,23 @@ export const createNotification = <Params>(
   ) as NotificationCreator<Params>;
 };
 
-export const createResult = <T>(): ResultCreator<T> => (
-  id?: number,
-  result?: T,
-  error?: RpcError,
-): RpcResult<T> => {
-  if (error) {
-    return {
-      jsonrpc: "2.0",
-      error,
-      id,
-    };
-  } else {
-    return {
-      jsonrpc: "2.0",
-      result,
-      id,
-    };
-  }
-};
+export const createResult =
+  <T>(): ResultCreator<T> =>
+  (id?: number, result?: T, error?: RpcError): RpcResult<T> => {
+    if (error) {
+      return {
+        jsonrpc: "2.0",
+        error,
+        id,
+      };
+    } else {
+      return {
+        jsonrpc: "2.0",
+        result,
+        id,
+      };
+    }
+  };
 
 export interface Notification<T> {
   method: string;
