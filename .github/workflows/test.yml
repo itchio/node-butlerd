@@ -1,0 +1,38 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download butler
+        run: |
+          wget https://broth.itch.zone/butler/linux-amd64-head/LATEST/.zip -O butler.zip --progress=dot
+          unzip butler.zip
+          chmod +x butler
+          echo "$PWD" >> $GITHUB_PATH
+
+      - name: Verify butler
+        run: butler -V
+
+      - name: Run tests
+        run: npm test
+        env:
+          DEBUG: butlerd:*
