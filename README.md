@@ -16,6 +16,12 @@ It implements the [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specificat
 over TCP, excluding batch requests (section 6), allowing requests and replies in both
 directions.
 
+## Installation
+
+```bash
+npm install @itchio/butlerd
+```
+
 ## Usage
 
 ```typescript
